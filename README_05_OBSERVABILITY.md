@@ -142,6 +142,9 @@ logging:
 ```
 
 ## 4.- Crear el  docker-compose con stack de observabilidad
+
+- ./docker-compose-observability.yml
+
 ```
 
 # ============================================
