@@ -1,6 +1,12 @@
+# ============================================
+# NAMESPACE
+# ============================================
+# Agrupa recursos relacionados
+
 apiVersion: v1
 kind: Namespace
 metadata:
   name: delivery-service
   labels:
     name: delivery-service
+    environment: local

@@ -28,13 +28,13 @@ El sistema consta de servicios como: Servicio de Usuarios, Servicio de Pedidos, 
 Cada servicio tiene responsabilidades bien definidas. Por ejemplo, el Servicio de Pedidos gestiona la creación y seguimiento de pedidos.
 
 ### 3.2 Interfaces y APIs expuestas
-APIs REST para clientes web/móviles, y APIs internas entre servicios. Contratos documentados con OpenAPI o similares.
+APIs REST para clientes web, y APIs internas entre servicios. Contratos documentados con OpenAPI o similares.
 
 ### 3.3 Comunicación entre componentes
 Principalmente asincrónica vía Kafka, con REST para operaciones sincrónicas necesarias.
 
 ### 3.4 Integración con sistemas externos (OPCIONAL)
-Integración con pasarelas de pago como Stripe y servicios de geolocalización para entregas.
+Integración con pasarelas de pago como Stripe y servicios de geolocalización para entregas. SE PUEDE SOLO SIMULAR LA PASARELA DE PAGOS NO MAS.
 
 ## 4. Detalle del Estilo Arquitectónico
 
@@ -52,7 +52,7 @@ Implementación con OAuth2 y JWT para sesiones de usuario. Validación de permis
 Escalado horizontal automático en Kubernetes por uso de CPU y cola de eventos.
 
 ### 6.2 Balanceo de carga
-Nginx y Kubernetes Ingress Controller para balanceo de solicitudes REST.
+Nginx y Kubernetes Ingress Controller para balanceo de solicitudes REST. PARA FACILIDAD USAR KUBERNETES INGRESS CONTROLLER PORQUE ESO HAN ENSEÑADO EN EL CURSO.
 
 ### 6.3 Tolerancia a fallos y alta disponibilidad
 Replicación de servicios críticos, reintento en servicios consumidores de eventos y circuit breakers.

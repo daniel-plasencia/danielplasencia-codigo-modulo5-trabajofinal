@@ -13,7 +13,7 @@ metadata:
 data:
   # URL de la base de datos
   # host.docker.internal apunta a localhost de tu máquina
-  DB_URL: "jdbc:postgresql://host.docker.internal:5434/userdb"
+  DB_URL: "jdbc:postgresql://host.docker.internal:5432/userdb"
 
   # Configuración de JPA
   DDL_AUTO: "validate"

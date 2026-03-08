@@ -1,6 +1,12 @@
+# ============================================
+# NAMESPACE
+# ============================================
+# Agrupa recursos relacionados
+
 apiVersion: v1
 kind: Namespace
 metadata:
   name: notification-service
   labels:
     name: notification-service
+    environment: local

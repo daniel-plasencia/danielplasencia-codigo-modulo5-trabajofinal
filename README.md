@@ -53,10 +53,11 @@ Sistema de pedidos de comida con 6 microservicios:
 
 - Java 21
 - Maven 3.8+
-- Docker y Docker Compose
-- Kubernetes (Minikube, Kind, o clúster real)
+- Docker Desktop (con Kubernetes habilitado)
 - kubectl configurado
 - Postman (para pruebas)
+
+**Nota:** Este proyecto está configurado para ejecutarse completamente en local usando Docker Desktop. No requiere AWS, EKS, ni servicios en la nube.
 
 ## 📁 Estructura del Proyecto
 
@@ -73,6 +74,7 @@ danielplasencia-codigo-modulo5-trabajofinal/
 ├── observability/                        # Configuración de observabilidad
 │   ├── prometheus/
 │   └── grafana/
+├── FoodOrdersSystem.postman_collection.json  # Colección Postman
 └── README.md
 ```
 
@@ -165,7 +167,17 @@ mvn spring-boot:run
 
 El servicio estará disponible en: http://localhost:8086
 
-## ☸️ Despliegue en Kubernetes
+## ☸️ Despliegue en Kubernetes (Docker Desktop)
+
+**Importante:** Este proyecto está configurado para Kubernetes local usando Docker Desktop. No requiere AWS EKS ni servicios en la nube.
+
+### 0. Habilitar Kubernetes en Docker Desktop
+
+1. Abre Docker Desktop
+2. Ve a Settings → Kubernetes
+3. Marca "Enable Kubernetes"
+4. Espera a que se inicie (verás un check verde)
+5. Verifica: `kubectl get nodes`
 
 ### 1. Construir Imágenes Docker
 
@@ -197,17 +209,12 @@ cd notification-service
 docker build -t notification-service:1.0 .
 ```
 
-### 2. Cargar Imágenes en Kubernetes
+### 2. Verificar que las imágenes estén disponibles
 
-Si usas Minikube:
+Con Docker Desktop, las imágenes Docker locales están disponibles automáticamente para Kubernetes. Solo asegúrate de que las imágenes estén construidas:
 
 ```bash
-minikube image load user-service:1.0
-minikube image load product-service:1.0
-minikube image load order-service:1.0
-minikube image load payment-service:1.0
-minikube image load delivery-service:1.0
-minikube image load notification-service:1.0
+docker images | grep -E "user-service|product-service|order-service|payment-service|delivery-service|notification-service"
 ```
 
 ### 3. Desplegar en Kubernetes
@@ -344,20 +351,34 @@ docker-compose -f docker-compose-observability.yml up -d
 - Formato: `http://service-name.namespace.svc.cluster.local:port`
 - Revisa los logs: `kubectl logs -n <namespace> <pod-name>`
 
+
 ## 📝 URLs de Servicios
 
-| Servicio | Puerto Local | Puerto K8s | Health Check |
-|----------|--------------|------------|--------------|
-| User Service | 8081 | 30081 | /actuator/health |
-| Product Service | 8082 | 30082 | /actuator/health |
-| Order Service | 8083 | 30083 | /actuator/health |
-| Payment Service | 8084 | 30084 | /actuator/health |
-| Delivery Service | 8085 | 30085 | /actuator/health |
-| Notification Service | 8086 | 30086 | /actuator/health |
-| Kafka UI | 8090 | - | - |
-| Prometheus | 9090 | - | - |
-| Grafana | 3000 | - | - |
-| Zipkin | 9411 | - | - |
+### Local (Docker Compose)
+| Servicio | Puerto Local | Health Check |
+|----------|--------------|--------------|
+| User Service | 8081 | /actuator/health |
+| Product Service | 8082 | /actuator/health |
+| Order Service | 8083 | /actuator/health |
+| Payment Service | 8084 | /actuator/health |
+| Delivery Service | 8085 | /actuator/health |
+| Notification Service | 8086 | /actuator/health |
+| Kafka UI | 8090 | - |
+| Prometheus | 9090 | - |
+| Grafana | 3000 | - |
+| Zipkin | 9411 | - |
+
+### Kubernetes (NodePort)
+| Servicio | Puerto NodePort | Health Check |
+|----------|-----------------|--------------|
+| User Service | http://localhost:30081 | /actuator/health |
+| Product Service | http://localhost:30082 | /actuator/health |
+| Order Service | http://localhost:30083 | /actuator/health |
+| Payment Service | http://localhost:30084 | /actuator/health |
+| Delivery Service | http://localhost:30085 | /actuator/health |
+| Notification Service | http://localhost:30086 | /actuator/health |
+
+**Nota:** Los servicios están expuestos mediante NodePort. Puedes acceder directamente usando `localhost` con el puerto NodePort correspondiente.
 
 ## 📚 Referencias
 
@@ -365,3 +386,13 @@ docker-compose -f docker-compose-observability.yml up -d
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [Kafka Documentation](https://kafka.apache.org/documentation/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
+- [Docker Desktop Kubernetes](https://docs.docker.com/desktop/kubernetes/)
+
+## ⚠️ Nota Importante
+
+Este proyecto está configurado para ejecutarse **completamente en local** usando:
+- Docker Compose para bases de datos y Kafka
+- Docker Desktop Kubernetes para los microservicios
+- No requiere AWS, EKS, ni ningún servicio en la nube
+
+Todo está diseñado para ejecutarse en tu PC local con Docker Desktop.

@@ -1,35 +1,92 @@
+# ============================================
+# DEPLOYMENT - Gestión de Pods
+# ============================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notification-service
   namespace: notification-service
+  labels:
+    app: notification-service
+
 spec:
-  replicas: 1
+  # ========================================
+  # Número de réplicas (copias)
+  # ========================================
+  replicas: 1  # Empezamos con 1 pod
+
+  # ========================================
+  # Selector: ¿Qué pods gestionar?
+  # ========================================
   selector:
     matchLabels:
       app: notification-service
+
+  # ========================================
+  # Template: Cómo crear cada pod
+  # ========================================
   template:
     metadata:
       labels:
         app: notification-service
+
     spec:
       containers:
         - name: notification-service
+
+          # Imagen Docker
           image: notification-service:1.0
+
+          # imagePullPolicy:
+          # - Never: Solo usar imagen local (desarrollo)
+          # - Always: Siempre descargar (producción)
           imagePullPolicy: Never
+
+          # Puerto del contenedor
           ports:
             - containerPort: 8086
+              name: http
+
+          # ====================================
+          # VARIABLES DE ENTORNO
+          # ====================================
           env:
+            # Spring profile
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
+
+            # Desde ConfigMap
             - name: DB_URL
               valueFrom:
                 configMapKeyRef:
                   name: notification-service-config
                   key: DB_URL
+
+            - name: DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: notification-service-config
+                  key: DDL_AUTO
+
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: notification-service-config
+                  key: LOG_LEVEL
+
+            - name: JAVA_OPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: notification-service-config
+                  key: JAVA_OPTS
+
+            # Desde Secret
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: notification-service-secret
                   key: DB_USERNAME
+
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:

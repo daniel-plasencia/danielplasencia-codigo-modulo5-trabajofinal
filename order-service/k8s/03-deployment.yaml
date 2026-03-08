@@ -1,54 +1,133 @@
+# ============================================
+# DEPLOYMENT - Gestión de Pods
+# ============================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: order-service
   namespace: order-service
+  labels:
+    app: order-service
+
 spec:
-  replicas: 1
+  # ========================================
+  # Número de réplicas (copias)
+  # ========================================
+  replicas: 1  # Empezamos con 1 pod
+
+  # ========================================
+  # Selector: ¿Qué pods gestionar?
+  # ========================================
   selector:
     matchLabels:
       app: order-service
+
+  # ========================================
+  # Template: Cómo crear cada pod
+  # ========================================
   template:
     metadata:
       labels:
         app: order-service
+
     spec:
       containers:
         - name: order-service
+
+          # Imagen Docker
           image: order-service:1.0
+
+          # imagePullPolicy:
+          # - Never: Solo usar imagen local (desarrollo)
+          # - Always: Siempre descargar (producción)
           imagePullPolicy: Never
+
+          # Puerto del contenedor
           ports:
             - containerPort: 8083
+              name: http
+
+          # ====================================
+          # VARIABLES DE ENTORNO
+          # ====================================
           env:
+            # Spring profile
             - name: SPRING_PROFILES_ACTIVE
               value: "kubernetes"
+
+            # Desde ConfigMap
             - name: USER_SERVICE_URL
               valueFrom:
                 configMapKeyRef:
                   name: order-service-config
                   key: USER_SERVICE_URL
+
             - name: PRODUCT_SERVICE_URL
               valueFrom:
                 configMapKeyRef:
                   name: order-service-config
                   key: PRODUCT_SERVICE_URL
+
             - name: DB_URL
               valueFrom:
                 configMapKeyRef:
                   name: order-service-config
                   key: DB_URL
+
+            - name: DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: DDL_AUTO
+
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: LOG_LEVEL
+
+            - name: JAVA_OPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: JAVA_OPTS
+
+            # Desde Secret
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: order-service-secret
                   key: DB_USERNAME
+
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: order-service-secret
                   key: DB_PASSWORD
+
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: order-service-secret
                   key: JWT_SECRET
+
+          # ====================================
+          # HEALTH CHECKS
+          # ====================================
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3

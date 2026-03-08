@@ -1,12 +1,36 @@
+# ============================================
+# CONFIGMAP - Configuración NO sensible
+# ============================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: order-service-config
   namespace: order-service
+  labels:
+    app: order-service
+
+# Pares clave-valor
 data:
+  # ⭐ URL del User Service
   USER_SERVICE_URL: "http://user-service.user-service.svc.cluster.local"
+
+  # ⭐ URL del Product Service
   PRODUCT_SERVICE_URL: "http://product-service.product-service.svc.cluster.local"
+
+  # URL de la base de datos
+  # host.docker.internal apunta a localhost de tu máquina
   DB_URL: "jdbc:postgresql://host.docker.internal:5434/orderdb"
+
+  # Configuración de JPA
   DDL_AUTO: "validate"
+  SHOW_SQL: "false"
+
+  # Pool de conexiones
+  POOL_SIZE: "10"
+
+  # Logging
   LOG_LEVEL: "INFO"
+  SQL_LOG_LEVEL: "WARN"
+
+  # JVM
   JAVA_OPTS: "-Xmx512m -Xms256m"

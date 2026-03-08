@@ -1,9 +1,30 @@
+# ============================================
+# CONFIGMAP - Configuración NO sensible
+# ============================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: notification-service-config
   namespace: notification-service
+  labels:
+    app: notification-service
+
+# Pares clave-valor
 data:
+  # URL de la base de datos
+  # host.docker.internal apunta a localhost de tu máquina
   DB_URL: "jdbc:postgresql://host.docker.internal:5437/notificationdb"
+
+  # Configuración de JPA
   DDL_AUTO: "validate"
+  SHOW_SQL: "false"
+
+  # Pool de conexiones
+  POOL_SIZE: "10"
+
+  # Logging
   LOG_LEVEL: "INFO"
+  SQL_LOG_LEVEL: "WARN"
+
+  # JVM
+  JAVA_OPTS: "-Xmx512m -Xms256m"

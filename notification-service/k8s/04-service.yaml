@@ -1,14 +1,39 @@
+# ============================================
+# SERVICE - Exposición de red
+# ============================================
 apiVersion: v1
 kind: Service
 metadata:
   name: notification-service
   namespace: notification-service
+  labels:
+    app: notification-service
+
 spec:
+  # ========================================
+  # Tipo de Service
+  # ========================================
   type: NodePort
+
+  # ========================================
+  # Selector: ¿A qué pods dirigir tráfico?
+  # ========================================
   selector:
     app: notification-service
+
+  # ========================================
+  # Puertos
+  # ========================================
   ports:
     - name: http
+      protocol: TCP
+
+      # port: Puerto del SERVICE (interno)
       port: 80
+
+      # targetPort: Puerto del CONTENEDOR
       targetPort: 8086
+
+      # nodePort: Puerto en LOCALHOST
+      # Rango: 30000-32767
       nodePort: 30086
