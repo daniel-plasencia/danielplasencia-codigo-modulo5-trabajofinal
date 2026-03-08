@@ -300,6 +300,416 @@ Importa el archivo `FoodOrdersSystem.postman_collection.json` en Postman.
    - GET `http://localhost:8086/api/notifications`
    - Verás notificaciones de todos los eventos
 
+## 🎯 Guía Funcional - Flujo Completo de la Aplicación
+
+Esta sección explica cómo funciona el sistema de pedidos de comida desde el punto de vista funcional y cómo probarlo paso a paso.
+
+### 📋 Flujo General del Sistema
+
+El sistema funciona con comunicación **síncrona (REST)** y **asíncrona (Kafka)**:
+
+```
+┌─────────────┐
+│   Cliente   │
+└──────┬──────┘
+       │
+       │ 1. Login (REST)
+       ▼
+┌─────────────┐
+│User Service │ ──► Genera JWT Token
+└──────┬──────┘
+       │
+       │ 2. Crear Producto (REST + JWT)
+       ▼
+┌─────────────┐
+│Product Svc  │ ──► Guarda en productdb
+└──────┬──────┘
+       │
+       │ 3. Crear Pedido (REST + JWT)
+       ▼
+┌─────────────┐     ┌──────────────┐
+│Order Service│ ──►│ Product Svc  │ (Valida productos)
+└──────┬──────┘     └──────────────┘
+       │
+       │ 4. Publica evento: OrderCreatedEvent
+       ▼
+   ┌───┴───┐
+   │ Kafka │
+   └───┬───┘
+       │
+       ├──► 5. Payment Service (consume evento)
+       │    └─► Procesa pago (simulado: siempre aprueba)
+       │    └─► Publica: PaymentProcessedEvent
+       │
+       ├──► 6. Delivery Service (consume PaymentProcessedEvent)
+       │    └─► Crea entrega
+       │    └─► Publica: DeliveryStartedEvent
+       │
+       └──► 7. Notification Service (consume todos los eventos)
+            └─► Crea notificaciones para el usuario
+```
+
+### 🔄 Flujo Detallado Paso a Paso
+
+#### **Paso 1: Autenticación (User Service)**
+
+**Qué hace:**
+- El usuario se autentica con email y contraseña
+- El sistema valida las credenciales contra la base de datos
+- Si son correctas, genera un token JWT que expira en 1 hora
+
+**Cómo probarlo:**
+```bash
+POST http://localhost:8081/api/auth/login
+Body:
+{
+  "email": "juan.perez@example.com",
+  "password": "admin123"
+}
+
+Respuesta:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "type": "Bearer"
+}
+```
+
+**Importante:** Guarda el `token` para usarlo en las siguientes peticiones.
+
+---
+
+#### **Paso 2: Crear Producto (Product Service)**
+
+**Qué hace:**
+- Crea un nuevo producto en el catálogo
+- Valida que el usuario esté autenticado (JWT)
+- Guarda el producto en `productdb`
+
+**Cómo probarlo:**
+```bash
+POST http://localhost:8082/api/products
+Headers:
+  Authorization: Bearer <token>
+
+Body:
+{
+  "name": "Pizza Margherita",
+  "price": 25.50,
+  "description": "Deliciosa pizza italiana con tomate y mozzarella"
+}
+
+Respuesta:
+{
+  "id": 1,
+  "name": "Pizza Margherita",
+  "price": 25.50,
+  "description": "Deliciosa pizza italiana con tomate y mozzarella",
+  "createdAt": "2025-01-15T10:30:00"
+}
+```
+
+**Nota:** Puedes crear varios productos. Anota los IDs para usarlos en el pedido.
+
+---
+
+#### **Paso 3: Crear Pedido (Order Service)**
+
+**Qué hace:**
+1. Valida que el usuario esté autenticado (extrae `userId` del JWT)
+2. Valida cada producto llamando al **Product Service** (comunicación síncrona)
+3. Calcula el total del pedido
+4. Guarda el pedido en `orderdb` con estado `PENDING`
+5. Publica evento `OrderCreatedEvent` en Kafka (comunicación asíncrona)
+
+**Cómo probarlo:**
+```bash
+POST http://localhost:8083/api/orders
+Headers:
+  Authorization: Bearer <token>
+
+Body:
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2
+    },
+    {
+      "productId": 2,
+      "quantity": 1
+    }
+  ]
+}
+
+Respuesta:
+{
+  "id": 1,
+  "orderNumber": "ORD-2025-001",
+  "userId": 1,
+  "status": "PENDING",
+  "totalAmount": 76.50,
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2,
+      "price": 25.50,
+      "subtotal": 51.00
+    },
+    {
+      "productId": 2,
+      "quantity": 1,
+      "price": 25.50,
+      "subtotal": 25.50
+    }
+  ],
+  "createdAt": "2025-01-15T10:35:00"
+}
+```
+
+**Lo que sucede internamente:**
+- Order Service llama a Product Service para validar cada producto
+- Si un producto no existe, retorna error 404
+- Calcula el total: `sum(quantity × price)` de cada item
+- Guarda en BD y publica evento en Kafka
+
+---
+
+#### **Paso 4: Procesamiento de Pago (Payment Service) - Automático**
+
+**Qué hace:**
+- **Payment Service** está escuchando el topic `orders.events` en Kafka
+- Cuando recibe un `OrderCreatedEvent`, automáticamente:
+  1. Crea un registro de pago en `paymentdb`
+  2. Simula el procesamiento (siempre aprueba el pago)
+  3. Publica evento `PaymentProcessedEvent` en Kafka
+
+**Cómo verificar:**
+```bash
+# Ver el pago creado
+GET http://localhost:8084/api/payments/1
+
+Respuesta:
+{
+  "id": 1,
+  "orderId": 1,
+  "amount": 76.50,
+  "status": "APPROVED",
+  "paymentMethod": "CREDIT_CARD",
+  "processedAt": "2025-01-15T10:35:05"
+}
+```
+
+**Nota:** Este paso es **automático**. No necesitas hacer nada, solo esperar unos segundos después de crear el pedido.
+
+---
+
+#### **Paso 5: Creación de Entrega (Delivery Service) - Automático**
+
+**Qué hace:**
+- **Delivery Service** está escuchando el topic `payments.events` en Kafka
+- Cuando recibe un `PaymentProcessedEvent` con status `APPROVED`, automáticamente:
+  1. Crea un registro de entrega en `deliverydb`
+  2. Asigna estado `IN_TRANSIT`
+  3. Publica evento `DeliveryStartedEvent` en Kafka
+
+**Cómo verificar:**
+```bash
+# Ver la entrega creada
+GET http://localhost:8085/api/deliveries/1
+
+Respuesta:
+{
+  "id": 1,
+  "orderId": 1,
+  "status": "IN_TRANSIT",
+  "address": "Calle Principal 123",
+  "estimatedDeliveryTime": "2025-01-15T11:35:00",
+  "createdAt": "2025-01-15T10:35:10"
+}
+```
+
+**Nota:** Este paso también es **automático**. Se ejecuta después de que el pago sea aprobado.
+
+---
+
+#### **Paso 6: Notificaciones (Notification Service) - Automático**
+
+**Qué hace:**
+- **Notification Service** está escuchando **todos** los eventos de Kafka:
+  - `orders.events` → Crea notificación "Pedido creado"
+  - `payments.events` → Crea notificación "Pago procesado"
+  - `deliveries.events` → Crea notificación "Entrega iniciada"
+
+**Cómo verificar:**
+```bash
+# Ver todas las notificaciones
+GET http://localhost:8086/api/notifications
+
+Respuesta:
+[
+  {
+    "id": 1,
+    "userId": 1,
+    "message": "Tu pedido ORD-2025-001 ha sido creado",
+    "type": "ORDER_CREATED",
+    "read": false,
+    "createdAt": "2025-01-15T10:35:00"
+  },
+  {
+    "id": 2,
+    "userId": 1,
+    "message": "Tu pago de $76.50 ha sido aprobado",
+    "type": "PAYMENT_APPROVED",
+    "read": false,
+    "createdAt": "2025-01-15T10:35:05"
+  },
+  {
+    "id": 3,
+    "userId": 1,
+    "message": "Tu pedido está en camino",
+    "type": "DELIVERY_STARTED",
+    "read": false,
+    "createdAt": "2025-01-15T10:35:10"
+  }
+]
+```
+
+---
+
+### 🧪 Flujo de Prueba Completo (End-to-End)
+
+Sigue estos pasos en orden para probar todo el sistema:
+
+#### **1. Preparación**
+```bash
+# Iniciar infraestructura
+docker-compose up -d
+
+# Verificar que todo esté corriendo
+docker ps
+```
+
+#### **2. Iniciar Microservicios**
+Inicia cada servicio en orden (en terminales separadas o en background):
+
+```bash
+# Terminal 1: User Service
+cd user-service
+mvn spring-boot:run
+
+# Terminal 2: Product Service
+cd product-service
+mvn spring-boot:run
+
+# Terminal 3: Order Service
+cd order-service
+mvn spring-boot:run
+
+# Terminal 4: Payment Service
+cd payment-service
+mvn spring-boot:run
+
+# Terminal 5: Delivery Service
+cd delivery-service
+mvn spring-boot:run
+
+# Terminal 6: Notification Service
+cd notification-service
+mvn spring-boot:run
+```
+
+#### **3. Ejecutar Flujo Completo con Postman**
+
+**3.1. Login**
+- Request: `POST /api/auth/login`
+- Body: `{"email": "juan.perez@example.com", "password": "admin123"}`
+- Guarda el `token` de la respuesta
+
+**3.2. Crear Producto**
+- Request: `POST /api/products`
+- Header: `Authorization: Bearer <token>`
+- Body: `{"name": "Pizza", "price": 25.50, "description": "Pizza Margherita"}`
+- Anota el `id` del producto creado
+
+**3.3. Crear Pedido**
+- Request: `POST /api/orders`
+- Header: `Authorization: Bearer <token>`
+- Body: `{"items": [{"productId": 1, "quantity": 2}]}`
+- Anota el `id` del pedido creado
+
+**3.4. Esperar 5-10 segundos** (para que se procesen los eventos de Kafka)
+
+**3.5. Verificar Pago**
+- Request: `GET /api/payments/{orderId}`
+- Deberías ver el pago aprobado
+
+**3.6. Verificar Entrega**
+- Request: `GET /api/deliveries/{orderId}`
+- Deberías ver la entrega creada
+
+**3.7. Verificar Notificaciones**
+- Request: `GET /api/notifications`
+- Deberías ver 3 notificaciones (pedido, pago, entrega)
+
+---
+
+### 🔍 Verificación de Eventos en Kafka
+
+Puedes verificar que los eventos se están publicando correctamente:
+
+1. **Abrir Kafka UI**: http://localhost:8090
+2. **Ver topics**: Deberías ver `orders.events`, `payments.events`, `deliveries.events`
+3. **Ver mensajes**: Haz clic en cada topic para ver los mensajes publicados
+
+---
+
+### 📊 Diagrama de Secuencia Completo
+
+```
+Cliente          User Svc    Product Svc   Order Svc    Kafka    Payment Svc   Delivery Svc   Notification Svc
+  │                 │             │            │          │          │              │                 │
+  ├─Login──────────►│             │            │          │          │              │                 │
+  │◄─Token──────────┤             │            │          │          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  ├─Create Product─►│────────────►│            │          │          │              │                 │
+  │◄─Product ID─────┤◄────────────┤            │          │          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  ├─Create Order───►│────────────►│───────────►│          │          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  │                 │             │            ├─Event───►│          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  │                 │             │            │          ├─Event───►│              │                 │
+  │                 │             │            │          │          ├─Event───────►│                 │
+  │                 │             │            │          │          │              ├─Event───────────►│
+  │                 │             │            │          │          │              │                 │
+  │◄─Order ID──────┤             │◄───────────┤          │          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  ├─Get Payment────►│             │            │          │          │              │                 │
+  │◄─Payment───────┤             │            │          │          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  ├─Get Delivery───►│             │            │          │          │              │                 │
+  │◄─Delivery───────┤             │            │          │          │              │                 │
+  │                 │             │            │          │          │              │                 │
+  ├─Get Notifications────────────►│             │            │          │          │              │                 │
+  │◄─Notifications────────────────┤             │            │          │          │              │                 │
+```
+
+---
+
+### ✅ Checklist de Verificación
+
+Después de ejecutar el flujo completo, verifica:
+
+- [ ] Login exitoso y token recibido
+- [ ] Producto creado correctamente
+- [ ] Pedido creado con total calculado correctamente
+- [ ] Pago procesado automáticamente (status: APPROVED)
+- [ ] Entrega creada automáticamente (status: IN_TRANSIT)
+- [ ] 3 notificaciones creadas (pedido, pago, entrega)
+- [ ] Eventos visibles en Kafka UI
+
+---
+
 ## 📊 Observabilidad
 
 ### 1. Iniciar Stack de Observabilidad
