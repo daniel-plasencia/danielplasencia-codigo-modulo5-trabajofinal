@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+  namespace: payment-service
+data:
+  DB_URL: "jdbc:postgresql://host.docker.internal:5435/paymentdb"
+  DDL_AUTO: "validate"
+  LOG_LEVEL: "INFO"

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: delivery-service-config
+  namespace: delivery-service
+data:
+  DB_URL: "jdbc:postgresql://host.docker.internal:5436/deliverydb"
+  DDL_AUTO: "validate"
+  LOG_LEVEL: "INFO"

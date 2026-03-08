@@ -42,27 +42,11 @@ public class UserEntity {
     @Column(length = 255)
     private String address;
 
-    // ========================================
-    // NUEVOS CAMPOS - Seguridad (Sesión 1)
-    // ========================================
-
     @Column(nullable = false, length = 100)
     private String password;
 
-    @Builder.Default
-    @Column(nullable = false)
-    private Boolean enabled = true;
-
-    @Builder.Default
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<RoleEntity> roles = new HashSet<>();
-
-    // ========================================
+    @Column(nullable = false, length = 20)
+    private String role;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

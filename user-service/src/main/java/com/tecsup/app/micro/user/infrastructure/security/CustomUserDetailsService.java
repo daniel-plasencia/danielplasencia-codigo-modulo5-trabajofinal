@@ -52,22 +52,18 @@ public class CustomUserDetailsService implements UserDetailsService {
                     return new UsernameNotFoundException("Usuario no encontrado con email: " + email);
                 });
 
-        // Convertir roles de la BD a GrantedAuthority de Spring Security
-        // Ejemplo: RoleEntity(name="ROLE_ADMIN") → SimpleGrantedAuthority("ROLE_ADMIN")
-        List<GrantedAuthority> authorities = userEntity.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .collect(Collectors.toList());
-
-        log.info("Usuario autenticado: {} con roles: {}", email, authorities);
+        List<GrantedAuthority> authorities = List.of(
+                new SimpleGrantedAuthority("ROLE_" + userEntity.getRole())
+        );
 
         return new User(
-                userEntity.getEmail(),       // username = email
-                userEntity.getPassword(),    // password BCrypt desde BD
-                userEntity.getEnabled(),     // enabled
-                true,                        // accountNonExpired
-                true,                        // credentialsNonExpired
-                true,                        // accountNonLocked
-                authorities                  // roles
+                userEntity.getEmail(),
+                userEntity.getPassword(),
+                true,
+                true,
+                true,
+                true,
+                authorities
         );
     }
 }

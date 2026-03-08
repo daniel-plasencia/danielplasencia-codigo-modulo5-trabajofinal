@@ -74,20 +74,27 @@ public class UserRepositoryImpl implements UserRepository {
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
                 .address(entity.getAddress())
+                .password(entity.getPassword())
+                .role(entity.getRole())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }
     
     private UserEntity toEntity(User user) {
-        return UserEntity.builder()
-                .id(user.getId())
+        UserEntity entity = UserEntity.builder()
                 .name(user.getName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .address(user.getAddress())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
+                .password(user.getPassword())
+                .role(user.getRole())
                 .build();
+        
+        if (user.getId() != null) {
+            entity.setId(user.getId());
+        }
+        
+        return entity;
     }
 }
