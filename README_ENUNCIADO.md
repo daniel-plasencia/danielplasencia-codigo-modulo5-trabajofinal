@@ -23,8 +23,8 @@ Este documento mapea cada seccion del enunciado (`Proyecto_Arquitectura_Microser
 | Registrar/autenticar usuarios | user-service | `POST /api/auth/login`, JWT con roles |
 | Catalogo de productos | product-service | `GET /api/products`, `POST /api/products` |
 | Realizar pedidos | order-service | `POST /api/orders` (valida producto via REST, obtiene precio) |
-| Gestionar pagos | payment-service | Consume `orders.events`, crea pago automaticamente |
-| Coordinar entregas | delivery-service | Consume `payments.events`, crea entrega automaticamente |
+| Gestionar pagos | payment-service | Registra pago PENDING al recibir evento; aprobacion manual via REST |
+| Coordinar entregas | delivery-service | Crea entrega al aprobarse pago; marcar entregado via REST |
 | Notificar al usuario | notification-service | Consume los 3 topics de Kafka |
 
 ### 1.3 Audiencia y nivel tecnico esperado
@@ -91,8 +91,8 @@ Este documento mapea cada seccion del enunciado (`Proyecto_Arquitectura_Microser
 | user-service | Registro, login, gestion de usuarios, generacion de JWT | 8081/30081 | userdb (5432) |
 | product-service | CRUD de productos, validacion de usuarios via REST | 8082/30082 | productdb (5433) |
 | order-service | Crear pedidos, validar productos via REST, publicar eventos | 8083/30083 | orderdb (5434) |
-| payment-service | Procesar pagos automaticamente al recibir evento de pedido | 8084/30084 | paymentdb (5435) |
-| delivery-service | Crear entregas automaticamente al recibir evento de pago | 8085/30085 | deliverydb (5436) |
+| payment-service | Registrar pagos PENDING y aprobar manualmente via REST | 8084/30084 | paymentdb (5435) |
+| delivery-service | Crear entregas al aprobarse pago, marcar entregado via REST | 8085/30085 | deliverydb (5436) |
 | notification-service | Registrar notificaciones de todos los eventos | 8086/30086 | notificationdb (5437) |
 
 ### 3.2 Interfaces y APIs expuestas
@@ -121,7 +121,7 @@ Este documento mapea cada seccion del enunciado (`Proyecto_Arquitectura_Microser
 |-------|-----------|----------------|
 | `orders.events` | order-service | payment-service, notification-service |
 | `payments.events` | payment-service | order-service, delivery-service, notification-service |
-| `deliveries.events` | delivery-service | notification-service |
+| `deliveries.events` | delivery-service | order-service, notification-service |
 
 **Archivos clave:**
 - `order-service/.../ProductClient.java` (REST a product-service con Resilience4j)
@@ -133,9 +133,9 @@ Este documento mapea cada seccion del enunciado (`Proyecto_Arquitectura_Microser
 
 > SE PUEDE SOLO SIMULAR LA PASARELA DE PAGOS NO MAS.
 
-**Como se cumple:** El payment-service simula una pasarela de pagos. Cuando recibe un `OrderCreatedEvent`, automaticamente crea un pago con status `APPROVED`. No se integra con Stripe ni otro proveedor real.
+**Como se cumple:** El payment-service simula una pasarela de pagos. Cuando recibe un `OrderCreatedEvent`, registra el pago con status `PENDING`. El cliente debe aprobar el pago manualmente via `POST /api/payments/{orderId}/pay`, lo cual cambia el status a `APPROVED` y dispara la cadena de eventos. No se integra con Stripe ni otro proveedor real.
 
-**Archivo:** `payment-service/.../ProcessPaymentUseCase.java`
+**Archivos:** `payment-service/.../ProcessPaymentUseCase.java` (crea PENDING), `ApprovePaymentUseCase.java` (aprueba), `PaymentController.java` (REST)
 
 ---
 
@@ -341,5 +341,5 @@ Cada servicio tiene scripts SQL versionados que se ejecutan automaticamente al a
 | 11 | Migraciones de BD | Si | Flyway (V1, V2, V3) |
 | 12 | Health checks | Si | Spring Actuator + K8s probes |
 | 13 | Observabilidad | Si | Actuator, Prometheus, Grafana, Kafka UI |
-| 14 | Simulacion de pagos | Si | payment-service auto-aprueba pagos |
+| 14 | Simulacion de pagos | Si | payment-service registra pago PENDING, aprobacion manual via REST |
 | 15 | Clean Architecture | Si | domain, application, presentation, infrastructure |

@@ -11,8 +11,8 @@ Sistema de pedidos de comida basado en arquitectura de microservicios con Spring
 | user-service | 8081 | 30081 | userdb (5432) | Usuarios, autenticacion, JWT |
 | product-service | 8082 | 30082 | productdb (5433) | Catalogo de productos |
 | order-service | 8083 | 30083 | orderdb (5434) | Pedidos, publica eventos Kafka |
-| payment-service | 8084 | 30084 | paymentdb (5435) | Pagos (consume Kafka) |
-| delivery-service | 8085 | 30085 | deliverydb (5436) | Entregas (consume Kafka) |
+| payment-service | 8084 | 30084 | paymentdb (5435) | Pagos (pago manual via REST + Kafka) |
+| delivery-service | 8085 | 30085 | deliverydb (5436) | Entregas (gestion via REST + Kafka) |
 | notification-service | 8086 | 30086 | notificationdb (5437) | Notificaciones (consume Kafka) |
 
 ## Tecnologias
@@ -44,19 +44,25 @@ Sistema de pedidos de comida basado en arquitectura de microservicios con Spring
               ┌─────────────┼─────────────────┐
               ▼             ▼                  ▼
         payment-service  notification-service
-         paymentdb        notificationdb
+         paymentdb (PENDING)  notificationdb
               │
-        Kafka: payments.events
+     POST /api/payments/{orderId}/pay  ← Cliente paga manualmente
+              │
+        Kafka: payments.events (APPROVED)
               │
      ┌────────┼────────────┐
      ▼        ▼            ▼
 order-service delivery-service notification-service
- (update)     deliverydb
+ (→ PAID)     deliverydb (IN_TRANSIT)
                   │
-            Kafka: deliveries.events
+     PUT /api/deliveries/{id}/status ← Repartidor marca entregado
                   │
-                  ▼
-           notification-service
+            Kafka: deliveries.events (DELIVERED)
+                  │
+              ┌───┼───┐
+              ▼       ▼
+        order-service notification-service
+         (→ DELIVERED)
 ```
 
 ## Prerrequisitos

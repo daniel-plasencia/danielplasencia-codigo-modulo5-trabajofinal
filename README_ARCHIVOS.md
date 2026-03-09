@@ -136,9 +136,11 @@ Misma estructura base, mas:
 | `BeanConfig.java` | Registra el bean RestTemplate para llamadas REST a product-service |
 | `OrderEventPublisher.java` | Publica OrderCreatedEvent en Kafka topic orders.events |
 | `PaymentEventKafkaListener.java` | Consume PaymentProcessedEvent de Kafka y actualiza la orden a PAID |
+| `DeliveryEventKafkaListener.java` | Consume DeliveryEvent de Kafka; si status es DELIVERED, actualiza la orden a DELIVERED |
+| `DeliveryEventDto.java` | DTO del evento de entrega que se consume (orderId, status, deliveryId) |
 | `OrderCreatedEvent.java` | DTO del evento que se publica (orderId, userId, amount) |
-| `PaymentEventDto.java` | DTO del evento que se consume (orderId, status, paymentId) |
-| `KafkaConfig.java` | Define los topics de Kafka y los crea automaticamente |
+| `PaymentEventDto.java` | DTO del evento de pago que se consume (orderId, status, paymentId) |
+| `KafkaConfig.java` | Define los topics de Kafka (orders.events, deliveries.events) y los crea automaticamente |
 | `SecurityConfig.java` | Seguridad JWT para los endpoints de pedidos |
 | `JwtTokenProvider.java` | Valida tokens JWT y extrae userId (mismo secret que user-service) |
 | `JwtAuthenticationFilter.java` | Filtro JWT |
@@ -150,9 +152,13 @@ Misma estructura base, mas:
 | Archivo | Que hace |
 |---------|---------|
 | `Payment.java` | Modelo de dominio del pago |
+| `PaymentRepository.java` | Interface de repositorio (incluye findAll y findByOrderId) |
 | `PaymentEntity.java` | Entidad JPA mapeada a la tabla payments |
-| `ProcessPaymentUseCase.java` | Crea el pago (siempre lo aprueba) y publica evento |
-| `OrderEventKafkaListener.java` | Consume OrderCreatedEvent de Kafka y procesa el pago |
+| `PaymentRepositoryImpl.java` | Implementa el repositorio del dominio usando JPA |
+| `ProcessPaymentUseCase.java` | Crea el pago con status PENDING (no lo aprueba automaticamente) |
+| `ApprovePaymentUseCase.java` | Aprueba un pago manualmente: cambia status a APPROVED y publica evento Kafka |
+| `PaymentController.java` | Endpoints REST: GET /api/payments, GET /api/payments/order/{orderId}, POST /api/payments/{orderId}/pay |
+| `OrderEventKafkaListener.java` | Consume OrderCreatedEvent de Kafka y registra pago PENDING |
 | `PaymentEventPublisher.java` | Publica PaymentProcessedEvent en Kafka topic payments.events |
 | `OrderEventDto.java` | DTO del evento que consume (orderId, userId, amount) |
 | `PaymentProcessedEvent.java` | DTO del evento que publica (orderId, status, paymentId) |
@@ -165,10 +171,14 @@ Misma estructura base, mas:
 | Archivo | Que hace |
 |---------|---------|
 | `Delivery.java` | Modelo de dominio de la entrega |
+| `DeliveryRepository.java` | Interface de repositorio (incluye findAll y findByOrderId) |
 | `DeliveryEntity.java` | Entidad JPA mapeada a la tabla deliveries |
+| `DeliveryRepositoryImpl.java` | Implementa el repositorio del dominio usando JPA |
 | `CreateDeliveryUseCase.java` | Crea la entrega con status IN_TRANSIT y publica evento |
+| `UpdateDeliveryStatusUseCase.java` | Actualiza status de una entrega (ej: a DELIVERED) y publica evento Kafka |
+| `DeliveryController.java` | Endpoints REST: GET /api/deliveries, GET /api/deliveries/order/{orderId}, PUT /api/deliveries/{id}/status |
 | `PaymentEventKafkaListener.java` | Consume PaymentProcessedEvent; si el pago fue APPROVED, crea la entrega |
-| `DeliveryEventPublisher.java` | Publica DeliveryStartedEvent en Kafka topic deliveries.events |
+| `DeliveryEventPublisher.java` | Publica DeliveryEvent en Kafka topic deliveries.events (IN_TRANSIT o DELIVERED) |
 | `PaymentEventDto.java` | DTO del evento que consume |
 | `DeliveryStartedEvent.java` | DTO del evento que publica (orderId, status, deliveryId) |
 | `KafkaConfig.java` | Define los topics payments.events y deliveries.events |
@@ -182,7 +192,7 @@ Misma estructura base, mas:
 | `Notification.java` | Modelo de dominio de la notificacion |
 | `NotificationEntity.java` | Entidad JPA mapeada a la tabla notifications |
 | `CreateNotificationUseCase.java` | Guarda una notificacion en la BD |
-| `NotificationKafkaListeners.java` | Consume los 3 topics de Kafka y crea notificaciones |
+| `NotificationKafkaListeners.java` | Consume los 3 topics de Kafka y crea notificaciones (diferencia DELIVERY_STARTED y DELIVERY_COMPLETED) |
 | `NotificationController.java` | Endpoint GET /api/notifications para ver todas las notificaciones |
 | `OrderEventDto.java` | DTO del evento de ordenes |
 | `PaymentEventDto.java` | DTO del evento de pagos |

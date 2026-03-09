@@ -4,21 +4,26 @@ Este documento explica como funciona el sistema, que eventos se disparan, como s
 
 ## Resumen del Flujo
 
-Cuando un cliente crea un pedido, ocurre lo siguiente de forma automatica:
+El flujo combina acciones manuales del usuario con procesamiento automatico via Kafka:
 
 ```
-1. Cliente hace login          → user-service genera JWT (incluye userId en el token)
-2. Cliente crea un pedido      → order-service recibe solo productId + quantity
-3. order-service valida        → llama a product-service via REST para verificar producto y obtener precio
-4. order-service guarda        → guarda pedido en orderdb con precio de product-service (status: PENDING)
-5. order-service publica       → Kafka topic: orders.events
-6. payment-service consume     → guarda pago en paymentdb (status: APPROVED)
-7. payment-service publica     → Kafka topic: payments.events
-8. order-service consume       → actualiza order en orderdb (status: PAID)
-9. delivery-service consume    → guarda entrega en deliverydb (status: IN_TRANSIT)
-10. delivery-service publica   → Kafka topic: deliveries.events
-11. notification-service consume los 3 topics → guarda 3 notificaciones en notificationdb
+1. Cliente hace login              → user-service genera JWT (incluye userId en el token)
+2. Cliente crea un pedido          → order-service valida producto via REST, obtiene precio
+3. order-service guarda            → orderdb (status: PENDING)
+4. order-service publica           → Kafka topic: orders.events
+5. payment-service consume         → crea pago en paymentdb (status: PENDING) ← NO aprueba aun
+6. Cliente paga manualmente        → POST /api/payments/{orderId}/pay
+7. payment-service aprueba         → paymentdb (status: APPROVED), publica Kafka payments.events
+8. order-service consume           → actualiza orderdb (status: PAID)
+9. delivery-service consume        → crea entrega en deliverydb (status: IN_TRANSIT)
+10. delivery-service publica       → Kafka topic: deliveries.events
+11. Repartidor marca entregado     → PUT /api/deliveries/{id}/status {"status":"DELIVERED"}
+12. delivery-service publica       → Kafka topic: deliveries.events (DELIVERED)
+13. order-service consume          → actualiza orderdb (status: DELIVERED)
+14. notification-service consume   → 4 notificaciones: ORDER_CREATED, PAYMENT_APPROVED, DELIVERY_STARTED, DELIVERY_COMPLETED
 ```
+
+**Ciclo de vida del pedido:** `PENDING → PAID → DELIVERED`
 
 ## Comunicacion entre Servicios
 
@@ -35,7 +40,7 @@ Cuando un cliente crea un pedido, ocurre lo siguiente de forma automatica:
 |-------|--------------|---------------|--------|
 | orders.events | order-service | payment-service, notification-service | OrderCreatedEvent (orderId, userId, amount) |
 | payments.events | payment-service | order-service, delivery-service, notification-service | PaymentProcessedEvent (orderId, status, paymentId) |
-| deliveries.events | delivery-service | notification-service | DeliveryStartedEvent (orderId, status, deliveryId) |
+| deliveries.events | delivery-service | order-service, notification-service | DeliveryEvent (orderId, status, deliveryId) |
 
 ## Bases de Datos - Que se actualiza en cada paso
 
@@ -44,10 +49,13 @@ Cuando un cliente crea un pedido, ocurre lo siguiente de forma automatica:
 | Login | userdb | users | Solo lectura (valida credenciales) |
 | Crear producto | productdb | products | Nuevo producto (createdBy tomado del JWT) |
 | Crear pedido | orderdb | orders + order_items | Pedido con status PENDING (userId del JWT, precio de product-service) |
-| Pago procesado | paymentdb | payments | Pago con status APPROVED |
+| Pago registrado (auto) | paymentdb | payments | Pago con status PENDING |
+| Pago aprobado (manual) | paymentdb | payments | Actualiza status a APPROVED |
 | Pedido pagado | orderdb | orders | Actualiza status a PAID |
-| Entrega creada | deliverydb | deliveries | Entrega con status IN_TRANSIT |
-| Notificaciones | notificationdb | notifications | 3 registros (ORDER_CREATED, PAYMENT_APPROVED, DELIVERY_STARTED) |
+| Entrega creada (auto) | deliverydb | deliveries | Entrega con status IN_TRANSIT |
+| Entrega completada (manual) | deliverydb | deliveries | Actualiza status a DELIVERED |
+| Pedido entregado | orderdb | orders | Actualiza status a DELIVERED |
+| Notificaciones | notificationdb | notifications | 4 registros (ORDER_CREATED, PAYMENT_APPROVED, DELIVERY_STARTED, DELIVERY_COMPLETED) |
 
 ## Seguridad (JWT)
 
@@ -216,27 +224,128 @@ Nota: `userId: 1` se obtuvo del JWT. `price: 25.50` se obtuvo del product-servic
 1. order-service llama a product-service para validar producto y obtener precio
 2. Se guarda el pedido en orderdb con status PENDING
 3. Se publica OrderCreatedEvent en Kafka
-4. payment-service consume el evento, crea el pago, publica PaymentProcessedEvent
-5. order-service consume PaymentProcessedEvent y cambia el status a PAID
-6. delivery-service consume PaymentProcessedEvent, crea la entrega, publica DeliveryStartedEvent
-7. notification-service consume los 3 eventos y crea 3 notificaciones
+4. payment-service consume el evento y crea un pago con status **PENDING** (NO lo aprueba automaticamente)
+5. notification-service consume el evento y crea notificacion ORDER_CREATED
+
+**El pedido queda en status PENDING esperando que el cliente pague.**
 
 ---
 
-### PASO 5: Verificar que el pedido cambio a PAID (requiere token)
-
-Espera 5 segundos despues de crear el pedido y consulta:
+### PASO 5: Ver el pago pendiente (sin token)
 
 ```
-GET http://localhost:30083/api/orders/1
+GET http://localhost:30084/api/payments/order/{orderId}
+```
+
+**Respuesta:**
+```json
+{
+    "id": 1,
+    "orderId": 1,
+    "amount": 51.00,
+    "status": "PENDING"
+}
+```
+
+---
+
+### PASO 6: Pagar el pedido manualmente (sin token)
+
+Este es el paso clave de la rama `feature/pago-manual-delivery`. El pago NO se aprueba automaticamente.
+
+```
+POST http://localhost:30084/api/payments/{orderId}/pay
+```
+
+**Respuesta:**
+```json
+{
+    "id": 1,
+    "orderId": 1,
+    "amount": 51.00,
+    "status": "APPROVED"
+}
+```
+
+**Lo que pasa internamente (en ~5 segundos):**
+1. payment-service cambia el pago a APPROVED y publica PaymentProcessedEvent en Kafka
+2. order-service consume el evento y cambia el pedido a PAID
+3. delivery-service consume el evento y crea la entrega con status IN_TRANSIT
+4. notification-service consume el evento y crea notificacion PAYMENT_APPROVED y DELIVERY_STARTED
+
+---
+
+### PASO 7: Verificar que el pedido cambio a PAID (requiere token)
+
+```
+GET http://localhost:30083/api/orders/{orderId}
 Authorization: Bearer <token>
 ```
 
-**Respuesta:** El campo `status` debe ser `"PAID"` (ya no PENDING).
+**Respuesta:** El campo `status` debe ser `"PAID"`.
 
 ---
 
-### PASO 6: Ver las notificaciones generadas (sin token)
+### PASO 8: Ver la entrega creada (sin token)
+
+```
+GET http://localhost:30085/api/deliveries/order/{orderId}
+```
+
+**Respuesta:**
+```json
+{
+    "id": 1,
+    "orderId": 1,
+    "address": "Direccion de entrega",
+    "status": "IN_TRANSIT"
+}
+```
+
+---
+
+### PASO 9: Marcar la entrega como DELIVERED (sin token)
+
+Cuando el repartidor entrega el pedido:
+
+```
+PUT http://localhost:30085/api/deliveries/{deliveryId}/status
+Content-Type: application/json
+
+{
+    "status": "DELIVERED"
+}
+```
+
+**Respuesta:**
+```json
+{
+    "id": 1,
+    "orderId": 1,
+    "address": "Direccion de entrega",
+    "status": "DELIVERED"
+}
+```
+
+**Lo que pasa internamente (en ~5 segundos):**
+1. delivery-service publica DeliveryEvent (DELIVERED) en Kafka
+2. order-service consume el evento y cambia el pedido a DELIVERED
+3. notification-service consume el evento y crea notificacion DELIVERY_COMPLETED
+
+---
+
+### PASO 10: Verificar que el pedido cambio a DELIVERED (requiere token)
+
+```
+GET http://localhost:30083/api/orders/{orderId}
+Authorization: Bearer <token>
+```
+
+**Respuesta:** El campo `status` debe ser `"DELIVERED"`.
+
+---
+
+### PASO 11: Ver todas las notificaciones (sin token)
 
 ```
 GET http://localhost:30086/api/notifications
@@ -245,40 +354,26 @@ GET http://localhost:30086/api/notifications
 **Respuesta:**
 ```json
 [
-    {
-        "id": 1,
-        "userId": 1,
-        "message": "Tu pedido #1 ha sido creado",
-        "type": "ORDER_CREATED"
-    },
-    {
-        "id": 2,
-        "userId": null,
-        "message": "Pago aprobado para pedido #1",
-        "type": "PAYMENT_APPROVED"
-    },
-    {
-        "id": 3,
-        "userId": null,
-        "message": "Tu pedido #1 esta en camino",
-        "type": "DELIVERY_STARTED"
-    }
+    { "id": 1, "userId": 1, "message": "Tu pedido #1 ha sido creado", "type": "ORDER_CREATED" },
+    { "id": 2, "userId": null, "message": "Pago aprobado para pedido #1", "type": "PAYMENT_APPROVED" },
+    { "id": 3, "userId": null, "message": "Tu pedido #1 esta en camino", "type": "DELIVERY_STARTED" },
+    { "id": 4, "userId": null, "message": "Tu pedido #1 ha sido entregado", "type": "DELIVERY_COMPLETED" }
 ]
 ```
 
 ---
 
-### PASO 7: Verificar los eventos en Kafka UI
+### PASO 12: Verificar los eventos en Kafka UI
 
 Abre http://localhost:8090 en el navegador. Ahi puedes ver:
 
-- Topic `orders.events` - contiene el OrderCreatedEvent
-- Topic `payments.events` - contiene el PaymentProcessedEvent
-- Topic `deliveries.events` - contiene el DeliveryStartedEvent
+- Topic `orders.events` - OrderCreatedEvent
+- Topic `payments.events` - PaymentProcessedEvent (solo despues de pagar manualmente)
+- Topic `deliveries.events` - DeliveryEvent (IN_TRANSIT al crearse, DELIVERED al marcar entregado)
 
 ---
 
-### Otros endpoints disponibles
+### Todos los endpoints disponibles
 
 **User Service (30081):**
 ```
@@ -308,6 +403,22 @@ GET  /api/orders/{id}        → Ver pedido (USER o ADMIN)
 GET  /api/orders/health      → Health check (publico)
 ```
 
+**Payment Service (30084):**
+```
+GET  /api/payments           → Lista todos los pagos (publico)
+GET  /api/payments/order/{orderId} → Ver pago por orderId (publico)
+POST /api/payments/{orderId}/pay   → Aprobar pago manualmente (publico)
+GET  /api/payments/health    → Health check (publico)
+```
+
+**Delivery Service (30085):**
+```
+GET  /api/deliveries                → Lista todas las entregas (publico)
+GET  /api/deliveries/order/{orderId} → Ver entrega por orderId (publico)
+PUT  /api/deliveries/{id}/status    → Actualizar status de entrega (publico)
+GET  /api/deliveries/health         → Health check (publico)
+```
+
 **Notification Service (30086):**
 ```
 GET  /api/notifications      → Lista todas las notificaciones (publico)
@@ -324,13 +435,16 @@ GET  /actuator/health        → Estado del servicio
 
 Despues de ejecutar el flujo completo:
 
-- [ ] Login exitoso, token recibido
+- [ ] Login exitoso, token recibido (con userId en claims)
 - [ ] Producto creado correctamente (createdBy tomado del JWT)
 - [ ] Pedido creado con status PENDING, total calculado con precio de product-service, userId del JWT
-- [ ] Pago procesado automaticamente (ver logs de payment-service)
-- [ ] Pedido actualizado a PAID
-- [ ] Entrega creada automaticamente (ver logs de delivery-service)
-- [ ] 3 notificaciones creadas en notification-service
+- [ ] Pago registrado automaticamente con status PENDING
+- [ ] Pago aprobado manualmente via POST /api/payments/{orderId}/pay
+- [ ] Pedido actualizado a PAID (despues de pagar)
+- [ ] Entrega creada automaticamente con status IN_TRANSIT (despues de pagar)
+- [ ] Entrega marcada como DELIVERED via PUT /api/deliveries/{id}/status
+- [ ] Pedido actualizado a DELIVERED (despues de entregar)
+- [ ] 4 notificaciones creadas: ORDER_CREATED, PAYMENT_APPROVED, DELIVERY_STARTED, DELIVERY_COMPLETED
 - [ ] Eventos visibles en Kafka UI (http://localhost:8090)
 
 ## Ver logs de un servicio en Kubernetes
