@@ -7,7 +7,7 @@ Que hace cada archivo y para que sirve.
 | Archivo | Para que sirve |
 |---------|---------------|
 | `docker-compose.yml` | Levanta las 6 bases de datos PostgreSQL, Zookeeper, Kafka y Kafka UI |
-| `docker-compose-observability.yml` | Levanta Prometheus, Grafana y Zipkin para monitoreo (opcional) |
+| `docker-compose-observability.yml` | Levanta Prometheus, Grafana y Zipkin para monitoreo |
 | `README.md` | Documentacion principal del proyecto |
 | `README_FUNCIONAL.md` | Guia funcional: como funciona todo y como probar con Postman |
 | `README_ARCHIVOS.md` | Este archivo: que hace cada archivo del proyecto |
@@ -248,3 +248,13 @@ Flyway ejecuta estos scripts automaticamente al arrancar cada servicio. El prefi
 | `application-kubernetes.yaml` | Cuando corres en K8s (perfil activado con SPRING_PROFILES_ACTIVE=kubernetes) |
 
 La diferencia principal es que en K8s las URLs de BD y Kafka apuntan a `host.docker.internal` (la maquina host desde dentro del pod), mientras que en local apuntan a `localhost`.
+
+## Archivos de Observabilidad (observability/)
+
+| Archivo | Que hace |
+|---------|---------|
+| `docker-compose-observability.yml` | Levanta Prometheus (9090), Grafana (3000) y Zipkin (9411) |
+| `observability/prometheus/prometheus.yml` | Configura Prometheus para scrapear metricas de los 6 servicios via NodePorts (30081-30086) |
+| `observability/grafana/provisioning/datasources/datasources.yml` | Configura Prometheus como datasource por defecto en Grafana |
+
+Cada servicio incluye `micrometer-registry-prometheus` como dependencia y expone `/actuator/prometheus` como endpoint publico.

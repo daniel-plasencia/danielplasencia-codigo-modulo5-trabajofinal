@@ -72,8 +72,8 @@ El flujo combina acciones manuales del usuario con procesamiento automatico via 
 
 | Rol | Que puede hacer |
 |-----|-----------------|
-| ADMIN | Todo: crear/editar/eliminar usuarios y productos, crear pedidos |
-| USER | Crear pedidos |
+| ADMIN | Todo: crear/editar/eliminar usuarios y productos, crear pedidos, pagar, gestionar entregas |
+| USER | Crear pedidos, pagar, ver entregas |
 
 ## Resiliencia (Circuit Breaker + Retry)
 
@@ -81,6 +81,41 @@ El flujo combina acciones manuales del usuario con procesamiento automatico via 
 - **order-service** tiene circuit breaker + retry en las llamadas a product-service (ProductClient)
 - Si el servicio destino no responde despues de 3 reintentos, se activa el fallback
 - Configuracion: ventana de 10 llamadas, umbral de fallo 50%, circuito abierto por 10 segundos
+
+## Observabilidad (Prometheus + Grafana + Zipkin)
+
+Para levantar el stack de observabilidad:
+
+```bash
+docker compose -f docker-compose-observability.yml up -d
+```
+
+| Herramienta | URL | Credenciales | Que ves |
+|-------------|-----|-------------|---------|
+| Prometheus | http://localhost:9090 | - | Targets, queries, metricas de los 6 servicios |
+| Grafana | http://localhost:3000 | admin / admin | Dashboards, graficas de metricas |
+| Zipkin | http://localhost:9411 | - | Trazas distribuidas |
+| Kafka UI | http://localhost:8090 | - | Topics, mensajes, consumers |
+
+### Verificar en Prometheus
+
+1. Abrir http://localhost:9090/targets → los 6 servicios deben estar en estado `UP`
+2. En la barra de queries escribir `jvm_memory_used_bytes` y ejecutar → metricas de memoria de cada servicio
+3. Probar `http_server_requests_seconds_count` → contadores de peticiones HTTP por servicio
+
+### Verificar en Grafana
+
+1. Abrir http://localhost:3000 (usuario: admin, password: admin)
+2. Ir a Connections > Data Sources → Prometheus ya esta configurado automaticamente
+3. Ir a Explore → seleccionar Prometheus → escribir `jvm_memory_used_bytes` → Run query
+
+### Endpoints de Actuator (publicos en todos los servicios)
+
+```
+GET /actuator/health     → Estado del servicio (UP/DOWN)
+GET /actuator/info       → Informacion del servicio
+GET /actuator/prometheus → Metricas en formato Prometheus (usado por Prometheus para scrapear)
+```
 
 ---
 

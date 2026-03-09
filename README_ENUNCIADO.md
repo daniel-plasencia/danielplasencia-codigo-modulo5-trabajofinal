@@ -280,14 +280,29 @@ Este documento mapea cada seccion del enunciado (`Proyecto_Arquitectura_Microser
 
 **Como se cumple:**
 
-| Herramienta | Implementacion |
-|-------------|---------------|
-| Spring Actuator | Todos los servicios exponen `/actuator/health`, `/actuator/info`, `/actuator/prometheus` |
-| Prometheus | Configurado en `docker-compose-observability.yml` |
-| Grafana | Configurado en `docker-compose-observability.yml` |
-| Kafka UI | Accesible en `http://localhost:8090` para ver topics y mensajes |
-| Logs K8s | `kubectl logs -n <namespace> deployment/<servicio>` |
-| Health checks | Liveness y readiness probes en todos los deployments |
+| Herramienta | Implementacion | URL |
+|-------------|---------------|-----|
+| Spring Actuator | Todos los servicios exponen `/actuator/health`, `/actuator/info`, `/actuator/prometheus` | http://localhost:30081/actuator/prometheus |
+| Prometheus | Scrapea metricas de los 6 servicios cada 15s via NodePorts | http://localhost:9090 |
+| Grafana | Dashboard con Prometheus como datasource (provisionado automaticamente) | http://localhost:3000 (admin/admin) |
+| Zipkin | Trazas distribuidas entre servicios | http://localhost:9411 |
+| Kafka UI | Visualizacion de topics, mensajes y consumers de Kafka | http://localhost:8090 |
+| Logs K8s | `kubectl logs -n <namespace> deployment/<servicio>` | - |
+| Health checks | Liveness y readiness probes en todos los deployments K8s | - |
+
+**Dependencia clave:** `micrometer-registry-prometheus` en los 6 `pom.xml` (habilita `/actuator/prometheus`)
+
+**Para levantar:** `docker compose -f docker-compose-observability.yml up -d`
+
+**Verificacion rapida:**
+1. Prometheus targets: http://localhost:9090/targets → 6 servicios en estado UP
+2. Grafana: http://localhost:3000 → Explore → query `jvm_memory_used_bytes`
+
+**Archivos clave:**
+- `observability/prometheus/prometheus.yml` → Configuracion de scrape (6 targets, NodePorts 30081-30086)
+- `observability/grafana/provisioning/datasources/datasources.yml` → Prometheus como datasource
+- `*/pom.xml` → Dependencia `micrometer-registry-prometheus`
+- `*/src/main/resources/application-kubernetes.yaml` → `management.endpoints.web.exposure.include: health,info,prometheus`
 
 ---
 

@@ -23,6 +23,8 @@ Sistema de pedidos de comida basado en arquitectura de microservicios con Spring
 - JWT con JJWT 0.12.6 (autenticacion)
 - Resilience4j 2.2.0 (circuit breaker en product-service y order-service)
 - Flyway (migraciones de BD)
+- Micrometer + Prometheus + Grafana (observabilidad)
+- Zipkin (trazas distribuidas)
 - Docker + Kubernetes (Docker Desktop)
 - MapStruct + Lombok
 
@@ -127,6 +129,21 @@ kubectl get pods --all-namespaces -l app
 
 Los 6 pods deben estar en estado `Running 1/1`.
 
+### 6. Levantar observabilidad (Prometheus + Grafana + Zipkin)
+
+```bash
+docker compose -f docker-compose-observability.yml up -d
+```
+
+Verificar en http://localhost:9090/targets que los 6 servicios estan UP.
+
+| Herramienta | URL | Credenciales |
+|-------------|-----|-------------|
+| Prometheus | http://localhost:9090 | - |
+| Grafana | http://localhost:3000 | admin / admin |
+| Zipkin | http://localhost:9411 | - |
+| Kafka UI | http://localhost:8090 | - |
+
 ## Ejecucion Local (sin Kubernetes)
 
 Si prefieres correr los servicios sin K8s, levanta la infraestructura con Docker Compose y ejecuta cada servicio con Maven:
@@ -151,6 +168,7 @@ Repetir para cada servicio en terminales separadas.
 ```bash
 kubectl delete namespace user-service product-service order-service payment-service delivery-service notification-service
 docker compose down -v
+docker compose -f docker-compose-observability.yml down -v
 docker rmi user-service:1.0 product-service:1.0 order-service:1.0 payment-service:1.0 delivery-service:1.0 notification-service:1.0
 ```
 
