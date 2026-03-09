@@ -16,12 +16,16 @@ public class DeliveryEventPublisher {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     
     public void publishDeliveryStarted(Delivery delivery) {
+        publishDeliveryEvent(delivery);
+    }
+
+    public void publishDeliveryEvent(Delivery delivery) {
         DeliveryStartedEvent event = new DeliveryStartedEvent(
                 delivery.getOrderId(),
                 delivery.getStatus(),
                 delivery.getId()
         );
         kafkaTemplate.send(KafkaConfig.DELIVERIES_EVENTS_TOPIC, "delivery-" + delivery.getId(), event);
-        log.info("Published DeliveryStartedEvent for delivery id: {}", delivery.getId());
+        log.info("Published DeliveryEvent [status={}] for delivery id: {}", delivery.getStatus(), delivery.getId());
     }
 }

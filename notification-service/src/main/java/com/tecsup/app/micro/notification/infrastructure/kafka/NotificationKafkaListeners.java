@@ -51,11 +51,19 @@ public class NotificationKafkaListeners {
     public void handleDeliveryEvent(String message) {
         try {
             DeliveryEventDto event = objectMapper.readValue(message, DeliveryEventDto.class);
-            createNotificationUseCase.execute(
-                    null,
-                    "Tu pedido #" + event.getOrderId() + " está en camino",
-                    "DELIVERY_STARTED"
-            );
+            if ("DELIVERED".equals(event.getStatus())) {
+                createNotificationUseCase.execute(
+                        null,
+                        "Tu pedido #" + event.getOrderId() + " ha sido entregado",
+                        "DELIVERY_COMPLETED"
+                );
+            } else {
+                createNotificationUseCase.execute(
+                        null,
+                        "Tu pedido #" + event.getOrderId() + " está en camino",
+                        "DELIVERY_STARTED"
+                );
+            }
         } catch (Exception e) {
             log.error("Error processing delivery event: {}", e.getMessage(), e);
         }

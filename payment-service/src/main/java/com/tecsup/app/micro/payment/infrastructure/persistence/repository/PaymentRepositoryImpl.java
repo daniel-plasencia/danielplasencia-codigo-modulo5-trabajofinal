@@ -6,7 +6,9 @@ import com.tecsup.app.micro.payment.infrastructure.persistence.entity.PaymentEnt
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,6 +33,13 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     public Optional<Payment> findByOrderId(Long orderId) {
         return jpaPaymentRepository.findByOrderId(orderId)
                 .map(this::toDomain);
+    }
+
+    @Override
+    public List<Payment> findAll() {
+        return jpaPaymentRepository.findAll().stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
     }
     
     private Payment toDomain(PaymentEntity entity) {
