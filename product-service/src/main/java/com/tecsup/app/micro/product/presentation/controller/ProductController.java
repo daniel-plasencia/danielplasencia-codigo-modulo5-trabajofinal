@@ -2,10 +2,12 @@ package com.tecsup.app.micro.product.presentation.controller;
 
 import com.tecsup.app.micro.product.application.service.ProductApplicationService;
 import com.tecsup.app.micro.product.domain.model.Product;
+import com.tecsup.app.micro.product.infrastructure.config.JwtTokenProvider;
 import com.tecsup.app.micro.product.presentation.dto.CreateProductRequest;
 import com.tecsup.app.micro.product.presentation.dto.ProductResponse;
 import com.tecsup.app.micro.product.presentation.dto.UpdateProductRequest;
 import com.tecsup.app.micro.product.presentation.mapper.ProductDtoMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,9 +28,8 @@ import java.util.List;
 public class ProductController {
     
     private final ProductApplicationService productApplicationService;
-    
-    // Mapper para convertir entre DTOs de presentación y modelo de dominio
     private final ProductDtoMapper productDtoMapper;
+    private final JwtTokenProvider jwtTokenProvider;
     
     /**
      * Obtiene todos los productos
@@ -50,24 +51,15 @@ public class ProductController {
         return ResponseEntity.ok(productDtoMapper.toResponseList(products));
     }
     
-    /**
-     * Obtiene un producto por ID 
-     */
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id,
                                                           @RequestHeader(value = "Authorization", required = false) String authHeader) {
         log.info("REST request to get product by id: {}", id);
 
-        // Extraer JWT del header
         String jwtToken = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwtToken = authHeader.substring(7);
-        } else {
-            log.warn("No Authorization header with Bearer token found for product retrieval");
         }
-
-        log.info("jwtToken extracted for product retrieval: {}", jwtToken != null);
 
         Product product = productApplicationService.getProductById(id, jwtToken);
         return ResponseEntity.ok(productDtoMapper.toResponse(product));
@@ -84,17 +76,30 @@ public class ProductController {
         return ResponseEntity.ok(productDtoMapper.toResponseList(products));
     }
     
-    /**
-     * Crea un nuevo producto
-     */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody CreateProductRequest request) {
+    public ResponseEntity<ProductResponse> createProduct(
+            @Valid @RequestBody CreateProductRequest request,
+            HttpServletRequest httpRequest) {
         log.info("REST request to create product: {}", request.getName());
+        
+        String token = extractToken(httpRequest);
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+        
         Product product = productDtoMapper.toDomain(request);
+        product.setCreatedBy(userId);
+        
         Product createdProduct = productApplicationService.createProduct(product);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(productDtoMapper.toResponse(createdProduct));
+    }
+    
+    private String extractToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
     
     /**

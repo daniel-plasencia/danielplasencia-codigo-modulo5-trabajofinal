@@ -20,6 +20,12 @@ public class JwtTokenProvider {
     public String getEmailFromToken(String token) {
         return getClaims(token).getSubject();
     }
+
+    public Long getUserIdFromToken(String token) {
+        Claims claims = getClaims(token);
+        Integer userId = claims.get("userId", Integer.class);
+        return userId != null ? userId.longValue() : null;
+    }
     
     @SuppressWarnings("unchecked")
     public List<String> getRolesFromToken(String token) {

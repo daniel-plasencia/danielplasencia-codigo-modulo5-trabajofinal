@@ -37,6 +37,4 @@ public class CreateProductRequest {
     
     @Size(max = 50, message = "Category must not exceed 50 characters")
     private String category;
-    
-    private Long createdBy;
 }

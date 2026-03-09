@@ -30,12 +30,15 @@ Sistema de pedidos de comida basado en arquitectura de microservicios con Spring
 
 ```
                         REST + JWT
-  Cliente ──────────► user-service ──► JWT Token
+  Cliente ──────────► user-service ──► JWT Token (incluye userId)
      │
      ├─ REST + JWT ──► product-service ──► productdb
+     │                  (createdBy del JWT)
      │
      └─ REST + JWT ──► order-service ──► orderdb
-                            │
+                            │  │
+                            │  └── REST ──► product-service
+                            │              (valida producto, obtiene precio)
                       Kafka: orders.events
                             │
               ┌─────────────┼─────────────────┐
@@ -149,4 +152,5 @@ docker rmi user-service:1.0 product-service:1.0 order-service:1.0 payment-servic
 
 - [README_FUNCIONAL.md](./README_FUNCIONAL.md) - Como funciona el sistema, flujo de eventos, como probar con Postman
 - [README_ARCHIVOS.md](./README_ARCHIVOS.md) - Que hace cada archivo del proyecto
-- [Proyecto_Arquitectura_Microservicios_Pedidos_Comida.md](./Proyecto_Arquitectura_Microservicios_Pedidos_Comida.md) - Documento de arquitectura
+- [README_ENUNCIADO.md](./README_ENUNCIADO.md) - Como se cumple cada parte del enunciado del ejercicio
+- [Proyecto_Arquitectura_Microservicios_Pedidos_Comida.md](./Proyecto_Arquitectura_Microservicios_Pedidos_Comida.md) - Documento de arquitectura (enunciado)

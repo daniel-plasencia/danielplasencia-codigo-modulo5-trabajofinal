@@ -4,6 +4,8 @@ import com.tecsup.app.micro.order.application.usecase.CreateOrderUseCase;
 import com.tecsup.app.micro.order.application.usecase.GetOrderByIdUseCase;
 import com.tecsup.app.micro.order.domain.model.Order;
 import com.tecsup.app.micro.order.domain.model.OrderItem;
+import com.tecsup.app.micro.order.infrastructure.client.ProductClient;
+import com.tecsup.app.micro.order.infrastructure.client.dto.ProductDto;
 import com.tecsup.app.micro.order.infrastructure.config.JwtTokenProvider;
 import com.tecsup.app.micro.order.presentation.dto.CreateOrderRequest;
 import com.tecsup.app.micro.order.presentation.dto.OrderItemRequest;
@@ -12,20 +14,24 @@ import com.tecsup.app.micro.order.presentation.dto.OrderResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
+@Slf4j
 public class OrderController {
     
     private final CreateOrderUseCase createOrderUseCase;
     private final GetOrderByIdUseCase getOrderByIdUseCase;
     private final JwtTokenProvider jwtTokenProvider;
+    private final ProductClient productClient;
     
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(
@@ -33,14 +39,36 @@ public class OrderController {
             HttpServletRequest httpRequest) {
         
         String token = extractToken(httpRequest);
-        String email = jwtTokenProvider.getEmailFromToken(token);
-        Long userId = 1L; // Simplificado: usar ID fijo por ahora
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+        
+        if (userId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        log.info("Creating order for userId: {} with {} items", userId, request.getItems().size());
+
+        List<OrderItem> items = new ArrayList<>();
+        for (OrderItemRequest itemReq : request.getItems()) {
+            ProductDto product = productClient.getProductById(itemReq.getProductId(), token);
+            if (product == null) {
+                throw new IllegalArgumentException(
+                        "Producto no encontrado o servicio no disponible: " + itemReq.getProductId());
+            }
+            if (!product.isAvailable() || product.getStock() < itemReq.getQuantity()) {
+                throw new IllegalArgumentException(
+                        "Producto sin stock suficiente: " + product.getName());
+            }
+
+            items.add(OrderItem.builder()
+                    .productId(product.getId())
+                    .quantity(itemReq.getQuantity())
+                    .price(product.getPrice())
+                    .build());
+        }
         
         Order order = Order.builder()
                 .userId(userId)
-                .items(request.getItems().stream()
-                        .map(this::toOrderItem)
-                        .collect(Collectors.toList()))
+                .items(items)
                 .build();
         
         Order created = createOrderUseCase.execute(order);
@@ -52,13 +80,10 @@ public class OrderController {
         Order order = getOrderByIdUseCase.execute(id);
         return ResponseEntity.ok(toResponse(order));
     }
-    
-    private OrderItem toOrderItem(OrderItemRequest request) {
-        return OrderItem.builder()
-                .productId(request.getProductId())
-                .quantity(request.getQuantity())
-                .price(request.getPrice())
-                .build();
+
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("Order Service running with Clean Architecture!");
     }
     
     private OrderResponse toResponse(Order order) {

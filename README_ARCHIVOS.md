@@ -83,7 +83,7 @@ user-service/
 | Archivo | Que hace |
 |---------|---------|
 | `UserController.java` | Endpoints REST de usuarios (/api/users) |
-| `AuthController.java` | Endpoint de login (/api/auth/login) |
+| `AuthController.java` | Endpoint de login (/api/auth/login). Genera JWT con userId en los claims |
 | `GlobalExceptionHandler.java` | Maneja errores y devuelve respuestas JSON |
 | `CreateUserRequest.java` | DTO para crear usuario |
 | `UpdateUserRequest.java` | DTO para actualizar usuario |
@@ -96,7 +96,7 @@ user-service/
 | Archivo | Que hace |
 |---------|---------|
 | `SecurityConfig.java` | Configura Spring Security: que endpoints son publicos, cuales necesitan token |
-| `JwtTokenProvider.java` | Genera y valida tokens JWT |
+| `JwtTokenProvider.java` | Genera JWT con email, roles y userId. Valida tokens JWT |
 | `JwtAuthenticationFilter.java` | Filtro que intercepta peticiones y valida el JWT |
 | `CustomUserDetailsService.java` | Carga usuarios de la BD para Spring Security |
 | `BeanConfig.java` | Registra beans como RestTemplate y PasswordEncoder |
@@ -112,10 +112,11 @@ Misma estructura que user-service, mas:
 
 | Archivo | Que hace |
 |---------|---------|
-| `UserClient.java` | Llama al user-service via REST para validar usuarios |
+| `ProductController.java` | Endpoints REST. POST extrae userId del JWT para createdBy (ya no se pide en el body) |
+| `JwtTokenProvider.java` | Valida tokens JWT y extrae userId del claim (para asignar createdBy) |
+| `UserClient.java` | Llama al user-service via REST para validar usuarios (circuit breaker + retry) |
 | `UserDto.java` / `UserDtoMapper.java` | DTO y mapper para la respuesta del user-service |
 | `ProductPersistenceMapper.java` | Convierte entre entidad JPA y dominio |
-| Resilience4j en `UserClient` | Circuit breaker + retry + fallback al llamar a user-service |
 
 ---
 
@@ -130,13 +131,16 @@ Misma estructura base, mas:
 | `CreateOrderUseCase.java` | Crea el pedido, calcula total y publica evento Kafka |
 | `UpdateOrderStatusUseCase.java` | Actualiza el status del pedido (PENDING → PAID) |
 | `GetOrderByIdUseCase.java` | Busca un pedido por ID |
+| `ProductClient.java` | Llama al product-service via REST para validar productos y obtener precios (circuit breaker + retry) |
+| `ProductDto.java` | DTO para la respuesta del product-service (id, name, price, stock, available) |
+| `BeanConfig.java` | Registra el bean RestTemplate para llamadas REST a product-service |
 | `OrderEventPublisher.java` | Publica OrderCreatedEvent en Kafka topic orders.events |
 | `PaymentEventKafkaListener.java` | Consume PaymentProcessedEvent de Kafka y actualiza la orden a PAID |
 | `OrderCreatedEvent.java` | DTO del evento que se publica (orderId, userId, amount) |
 | `PaymentEventDto.java` | DTO del evento que se consume (orderId, status, paymentId) |
 | `KafkaConfig.java` | Define los topics de Kafka y los crea automaticamente |
 | `SecurityConfig.java` | Seguridad JWT para los endpoints de pedidos |
-| `JwtTokenProvider.java` | Valida tokens JWT (mismo secret que user-service) |
+| `JwtTokenProvider.java` | Valida tokens JWT y extrae userId (mismo secret que user-service) |
 | `JwtAuthenticationFilter.java` | Filtro JWT |
 
 ---

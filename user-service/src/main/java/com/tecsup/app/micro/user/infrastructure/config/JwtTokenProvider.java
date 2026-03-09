@@ -38,18 +38,16 @@ public class JwtTokenProvider {
     @Value("${jwt.expiration:3600000}")  // Default: 1 hora
     private long jwtExpiration;
 
-    /**
-     * Genera un JWT con email como subject y roles como claim
-     */
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, Long userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList()));
+        claims.put("userId", userId);
 
         return Jwts.builder()
                 .claims(claims)
-                .subject(userDetails.getUsername())  // email
+                .subject(userDetails.getUsername())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey())

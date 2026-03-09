@@ -2,6 +2,8 @@
 package com.tecsup.app.micro.user.presentation.controller;
 
 import com.tecsup.app.micro.user.infrastructure.config.JwtTokenProvider;
+import com.tecsup.app.micro.user.infrastructure.persistence.entity.UserEntity;
+import com.tecsup.app.micro.user.infrastructure.persistence.repository.JpaUserRepository;
 import com.tecsup.app.micro.user.infrastructure.security.CustomUserDetailsService;
 import com.tecsup.app.micro.user.presentation.dto.LoginRequest;
 import com.tecsup.app.micro.user.presentation.dto.LoginResponse;
@@ -40,6 +42,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService customUserDetailsService;
+    private final JpaUserRepository jpaUserRepository;
 
     /**
      * Endpoint de login
@@ -68,11 +71,12 @@ public class AuthController {
                     )
             );
 
-            // Cargar detalles del usuario
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getEmail());
 
-            // Generar JWT
-            String token = jwtTokenProvider.generateToken(userDetails);
+            UserEntity userEntity = jpaUserRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new BadCredentialsException("Usuario no encontrado"));
+
+            String token = jwtTokenProvider.generateToken(userDetails, userEntity.getId());
 
             // Construir respuesta
             LoginResponse response = LoginResponse.builder()

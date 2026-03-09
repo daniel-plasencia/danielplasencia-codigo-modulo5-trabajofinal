@@ -16,9 +16,7 @@ import java.util.List;
 @Mapper(componentModel = "spring", uses = {UserDtoMapper.class})
 public interface ProductDtoMapper {
 
-    /**
-     * Convierte CreateProductRequest a Product de dominio
-     */
+    @Mapping(target = "createdBy", ignore = true)
     Product toDomain(CreateProductRequest request);
     
     /**
