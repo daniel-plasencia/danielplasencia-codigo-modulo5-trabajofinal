@@ -24,6 +24,14 @@ spring:
       connection-timeout: 20000
   
   # ============================================
+  # FLYWAY - Migraciones de base de datos
+  # ============================================
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # ============================================
   # JPA CONFIGURATION
   # ============================================
   jpa:

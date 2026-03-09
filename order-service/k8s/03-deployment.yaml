@@ -74,6 +74,12 @@ spec:
                   name: order-service-config
                   key: DB_URL
 
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: order-service-config
+                  key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+
             - name: DDL_AUTO
               valueFrom:
                 configMapKeyRef:

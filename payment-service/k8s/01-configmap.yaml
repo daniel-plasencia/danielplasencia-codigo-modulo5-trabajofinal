@@ -12,8 +12,10 @@ metadata:
 # Pares clave-valor
 data:
   # URL de la base de datos
-  # host.docker.internal apunta a localhost de tu máquina
   DB_URL: "jdbc:postgresql://host.docker.internal:5435/paymentdb"
+
+  # Kafka
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "host.docker.internal:9092"
 
   # Configuración de JPA
   DDL_AUTO: "validate"

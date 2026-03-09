@@ -26,7 +26,7 @@ spring:
     baseline-on-migrate: true
 
 jwt:
-  secret: mySecretKeyForJWTTokenGeneration12345678901234567890
+  secret: m1S3cr3tK3yJWT_T3csup2025!@#SecureToken
   expiration: 86400000
 
 management:

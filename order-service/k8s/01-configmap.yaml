@@ -18,8 +18,10 @@ data:
   PRODUCT_SERVICE_URL: "http://product-service.product-service.svc.cluster.local"
 
   # URL de la base de datos
-  # host.docker.internal apunta a localhost de tu máquina
   DB_URL: "jdbc:postgresql://host.docker.internal:5434/orderdb"
+
+  # Kafka (host.docker.internal para conectar a Docker Compose)
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "host.docker.internal:9092"
 
   # Configuración de JPA
   DDL_AUTO: "validate"

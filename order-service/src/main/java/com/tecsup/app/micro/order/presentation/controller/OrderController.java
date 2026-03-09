@@ -7,6 +7,7 @@ import com.tecsup.app.micro.order.domain.model.OrderItem;
 import com.tecsup.app.micro.order.infrastructure.config.JwtTokenProvider;
 import com.tecsup.app.micro.order.presentation.dto.CreateOrderRequest;
 import com.tecsup.app.micro.order.presentation.dto.OrderItemRequest;
+import com.tecsup.app.micro.order.presentation.dto.OrderItemResponse;
 import com.tecsup.app.micro.order.presentation.dto.OrderResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
