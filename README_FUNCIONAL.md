@@ -63,8 +63,9 @@ El flujo combina acciones manuales del usuario con procesamiento automatico via 
 - **product-service** y **order-service** validan tokens JWT en cada peticion
 - **product-service** extrae el userId del JWT al crear productos (campo createdBy automatico)
 - **order-service** extrae el userId del JWT al crear pedidos (no se pide en el body)
-- **payment-service**, **delivery-service** y **notification-service** no tienen seguridad JWT (reciben eventos por Kafka)
-- El secreto JWT es compartido entre user-service, product-service y order-service
+- **payment-service** y **delivery-service** validan tokens JWT en sus endpoints REST
+- **notification-service** no tiene seguridad JWT (solo expone GET de notificaciones)
+- El secreto JWT es compartido entre user-service, product-service, order-service, payment-service y delivery-service
 - Los tokens expiran en 1 hora (Kubernetes) o 24 horas (local)
 
 ### Roles
@@ -231,10 +232,11 @@ Nota: `userId: 1` se obtuvo del JWT. `price: 25.50` se obtuvo del product-servic
 
 ---
 
-### PASO 5: Ver el pago pendiente (sin token)
+### PASO 5: Ver el pago pendiente (requiere token)
 
 ```
 GET http://localhost:30084/api/payments/order/{orderId}
+Authorization: Bearer <token>
 ```
 
 **Respuesta:**
@@ -249,12 +251,13 @@ GET http://localhost:30084/api/payments/order/{orderId}
 
 ---
 
-### PASO 6: Pagar el pedido manualmente (sin token)
+### PASO 6: Pagar el pedido manualmente (requiere token)
 
-Este es el paso clave de la rama `feature/pago-manual-delivery`. El pago NO se aprueba automaticamente.
+Este es el paso clave. El pago NO se aprueba automaticamente.
 
 ```
 POST http://localhost:30084/api/payments/{orderId}/pay
+Authorization: Bearer <token>
 ```
 
 **Respuesta:**
@@ -286,10 +289,11 @@ Authorization: Bearer <token>
 
 ---
 
-### PASO 8: Ver la entrega creada (sin token)
+### PASO 8: Ver la entrega creada (requiere token)
 
 ```
 GET http://localhost:30085/api/deliveries/order/{orderId}
+Authorization: Bearer <token>
 ```
 
 **Respuesta:**
@@ -304,12 +308,13 @@ GET http://localhost:30085/api/deliveries/order/{orderId}
 
 ---
 
-### PASO 9: Marcar la entrega como DELIVERED (sin token)
+### PASO 9: Marcar la entrega como DELIVERED (requiere token)
 
 Cuando el repartidor entrega el pedido:
 
 ```
 PUT http://localhost:30085/api/deliveries/{deliveryId}/status
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
@@ -345,7 +350,7 @@ Authorization: Bearer <token>
 
 ---
 
-### PASO 11: Ver todas las notificaciones (sin token)
+### PASO 11: Ver todas las notificaciones (sin token, unico endpoint publico)
 
 ```
 GET http://localhost:30086/api/notifications
@@ -405,17 +410,17 @@ GET  /api/orders/health      → Health check (publico)
 
 **Payment Service (30084):**
 ```
-GET  /api/payments           → Lista todos los pagos (publico)
-GET  /api/payments/order/{orderId} → Ver pago por orderId (publico)
-POST /api/payments/{orderId}/pay   → Aprobar pago manualmente (publico)
+GET  /api/payments           → Lista todos los pagos (USER o ADMIN)
+GET  /api/payments/order/{orderId} → Ver pago por orderId (USER o ADMIN)
+POST /api/payments/{orderId}/pay   → Aprobar pago manualmente (USER o ADMIN)
 GET  /api/payments/health    → Health check (publico)
 ```
 
 **Delivery Service (30085):**
 ```
-GET  /api/deliveries                → Lista todas las entregas (publico)
-GET  /api/deliveries/order/{orderId} → Ver entrega por orderId (publico)
-PUT  /api/deliveries/{id}/status    → Actualizar status de entrega (publico)
+GET  /api/deliveries                → Lista todas las entregas (USER o ADMIN)
+GET  /api/deliveries/order/{orderId} → Ver entrega por orderId (USER o ADMIN)
+PUT  /api/deliveries/{id}/status    → Actualizar status de entrega (USER o ADMIN)
 GET  /api/deliveries/health         → Health check (publico)
 ```
 

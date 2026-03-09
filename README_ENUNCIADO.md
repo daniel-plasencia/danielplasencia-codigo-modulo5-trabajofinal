@@ -176,20 +176,22 @@ Este documento mapea cada seccion del enunciado (`Proyecto_Arquitectura_Microser
 | Claims del JWT | `email` (subject), `roles` (ROLE_ADMIN, ROLE_USER), `userId` |
 | Autorizacion por roles | Spring Security con `hasRole("ADMIN")`, `hasAnyRole("USER", "ADMIN")` |
 | Propagacion de identidad | El `userId` se extrae del JWT en product-service y order-service |
-| Secreto compartido | Mismo `JWT_SECRET` en user-service, product-service y order-service (via K8s Secret) |
+| Secreto compartido | Mismo `JWT_SECRET` en user-service, product-service, order-service, payment-service y delivery-service (via K8s Secret) |
 
 **Roles implementados:**
 
 | Rol | Permisos |
 |-----|---------|
-| ADMIN | Crear/editar/eliminar usuarios y productos, crear pedidos |
-| USER | Crear pedidos |
+| ADMIN | Crear/editar/eliminar usuarios y productos, crear pedidos, pagar, gestionar entregas |
+| USER | Crear pedidos, pagar, ver entregas |
 
 **Archivos clave:**
 - `user-service/.../JwtTokenProvider.java` → Genera JWT con userId
 - `user-service/.../AuthController.java` → Endpoint de login
 - `product-service/.../SecurityConfig.java` → Reglas de autorizacion
 - `order-service/.../SecurityConfig.java` → Reglas de autorizacion
+- `payment-service/.../SecurityConfig.java` → Reglas de autorizacion (JWT requerido para pagar)
+- `delivery-service/.../SecurityConfig.java` → Reglas de autorizacion (JWT requerido para entregas)
 - `*/k8s/02-secret.yaml` → JWT_SECRET en base64
 
 **Ejemplo de uso de identidad del JWT:**

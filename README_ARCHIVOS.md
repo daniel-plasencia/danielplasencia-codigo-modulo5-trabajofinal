@@ -131,6 +131,7 @@ Misma estructura base, mas:
 | `CreateOrderUseCase.java` | Crea el pedido, calcula total y publica evento Kafka |
 | `UpdateOrderStatusUseCase.java` | Actualiza el status del pedido (PENDING → PAID) |
 | `GetOrderByIdUseCase.java` | Busca un pedido por ID |
+| `GlobalExceptionHandler.java` | Maneja errores (IllegalArgumentException, RuntimeException) y devuelve respuestas JSON claras |
 | `ProductClient.java` | Llama al product-service via REST para validar productos y obtener precios (circuit breaker + retry) |
 | `ProductDto.java` | DTO para la respuesta del product-service (id, name, price, stock, available) |
 | `BeanConfig.java` | Registra el bean RestTemplate para llamadas REST a product-service |
@@ -155,6 +156,9 @@ Misma estructura base, mas:
 | `PaymentRepository.java` | Interface de repositorio (incluye findAll y findByOrderId) |
 | `PaymentEntity.java` | Entidad JPA mapeada a la tabla payments |
 | `PaymentRepositoryImpl.java` | Implementa el repositorio del dominio usando JPA |
+| `JwtTokenProvider.java` | Valida tokens JWT (mismo secreto que user-service) |
+| `JwtAuthenticationFilter.java` | Filtro que intercepta peticiones y valida el JWT |
+| `SecurityConfig.java` | Configura Spring Security: endpoints protegidos con JWT |
 | `ProcessPaymentUseCase.java` | Crea el pago con status PENDING (no lo aprueba automaticamente) |
 | `ApprovePaymentUseCase.java` | Aprueba un pago manualmente: cambia status a APPROVED y publica evento Kafka |
 | `PaymentController.java` | Endpoints REST: GET /api/payments, GET /api/payments/order/{orderId}, POST /api/payments/{orderId}/pay |
@@ -174,6 +178,9 @@ Misma estructura base, mas:
 | `DeliveryRepository.java` | Interface de repositorio (incluye findAll y findByOrderId) |
 | `DeliveryEntity.java` | Entidad JPA mapeada a la tabla deliveries |
 | `DeliveryRepositoryImpl.java` | Implementa el repositorio del dominio usando JPA |
+| `JwtTokenProvider.java` | Valida tokens JWT (mismo secreto que user-service) |
+| `JwtAuthenticationFilter.java` | Filtro que intercepta peticiones y valida el JWT |
+| `SecurityConfig.java` | Configura Spring Security: endpoints protegidos con JWT |
 | `CreateDeliveryUseCase.java` | Crea la entrega con status IN_TRANSIT y publica evento |
 | `UpdateDeliveryStatusUseCase.java` | Actualiza status de una entrega (ej: a DELIVERED) y publica evento Kafka |
 | `DeliveryController.java` | Endpoints REST: GET /api/deliveries, GET /api/deliveries/order/{orderId}, PUT /api/deliveries/{id}/status |
