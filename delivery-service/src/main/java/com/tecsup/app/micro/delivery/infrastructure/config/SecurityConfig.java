@@ -1,4 +1,4 @@
-package com.tecsup.app.micro.order.infrastructure.config;
+package com.tecsup.app.micro.delivery.infrastructure.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -14,9 +14,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-    
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -25,9 +25,9 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/api/orders/health").permitAll()
+                        .requestMatchers("/api/deliveries/health").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/orders", "/api/orders/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/deliveries/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
@@ -35,9 +35,9 @@ public class SecurityConfig {
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
                             response.setContentType("application/json");
                             response.getWriter().write(
-                                    "{\"error\":\"No autenticado\",\"status\":401}");
+                                    "{\"error\":\"No autenticado - se requiere token JWT\",\"status\":401}");
                         }));
-        
+
         return http.build();
     }
 }

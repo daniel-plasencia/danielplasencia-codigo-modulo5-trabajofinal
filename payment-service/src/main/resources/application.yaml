@@ -42,6 +42,10 @@ management:
       prometheus:
         enabled: true
 
+jwt:
+  secret: m1S3cr3tK3yJWT_T3csup2025!@#SecureToken
+  expiration: 86400000
+
 logging:
   level:
     com.tecsup.app.micro.payment: INFO

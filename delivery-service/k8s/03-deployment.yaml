@@ -98,3 +98,9 @@ spec:
                 secretKeyRef:
                   name: delivery-service-secret
                   key: DB_PASSWORD
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: delivery-service-secret
+                  key: JWT_SECRET

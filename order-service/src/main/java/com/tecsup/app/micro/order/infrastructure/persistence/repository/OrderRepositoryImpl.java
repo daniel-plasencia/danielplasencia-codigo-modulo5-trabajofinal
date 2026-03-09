@@ -23,14 +23,17 @@ public class OrderRepositoryImpl implements OrderRepository {
     public Order save(Order order) {
         OrderEntity entity = toEntity(order);
         OrderEntity saved = jpaOrderRepository.save(entity);
-        
-        if (order.getItems() != null) {
-            List<OrderItemEntity> items = order.getItems().stream()
-                    .map(item -> toItemEntity(item, saved.getId()))
-                    .collect(Collectors.toList());
-            jpaOrderItemRepository.saveAll(items);
+
+        if (order.getItems() != null && !order.getItems().isEmpty()) {
+            boolean isNewOrder = order.getItems().stream().allMatch(item -> item.getId() == null);
+            if (isNewOrder) {
+                List<OrderItemEntity> items = order.getItems().stream()
+                        .map(item -> toItemEntity(item, saved.getId()))
+                        .collect(Collectors.toList());
+                jpaOrderItemRepository.saveAll(items);
+            }
         }
-        
+
         return toDomain(saved);
     }
     
