@@ -1,174 +1,795 @@
 {
-  "info": {
-    "name": "Food Orders System",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Login",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"juan.perez@example.com\",\n  \"password\": \"admin123\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:8081/api/auth/login",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8081",
-              "path": ["api", "auth", "login"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Users",
-      "item": [
-        {
-          "name": "Get All Users",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:8081/api/users",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8081",
-              "path": ["api", "users"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Products",
-      "item": [
-        {
-          "name": "Get All Products",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:8082/api/products",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8082",
-              "path": ["api", "products"]
-            }
-          }
-        },
-        {
-          "name": "Create Product",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Pizza Margherita\",\n  \"price\": 25.50,\n  \"description\": \"Deliciosa pizza italiana\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:8082/api/products",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8082",
-              "path": ["api", "products"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Orders",
-      "item": [
-        {
-          "name": "Create Order",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"quantity\": 2,\n      \"price\": 25.50\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "http://localhost:8083/api/orders",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8083",
-              "path": ["api", "orders"]
-            }
-          }
-        },
-        {
-          "name": "Get Order",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "http://localhost:8083/api/orders/1",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8083",
-              "path": ["api", "orders", "1"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "item": [
-        {
-          "name": "Get All Notifications",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8086/api/notifications",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "8086",
-              "path": ["api", "notifications"]
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "variable": [
-    {
-      "key": "token",
-      "value": ""
-    }
-  ]
+	"info": {
+		"_postman_id": "food-orders-system-2026",
+		"name": "Food Orders System - Flujo Completo",
+		"description": "Coleccion de Postman para probar el sistema de pedidos de comida.\n\nFlujo: Login → Crear Producto → Crear Pedido → Pagar → Verificar PAID → Ver Entrega → Marcar DELIVERED → Verificar DELIVERED → Ver Notificaciones\n\nLos scripts automatizan el paso del token JWT y los IDs entre requests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl_user",
+			"value": "http://localhost:30081"
+		},
+		{
+			"key": "baseUrl_product",
+			"value": "http://localhost:30082"
+		},
+		{
+			"key": "baseUrl_order",
+			"value": "http://localhost:30083"
+		},
+		{
+			"key": "baseUrl_payment",
+			"value": "http://localhost:30084"
+		},
+		{
+			"key": "baseUrl_delivery",
+			"value": "http://localhost:30085"
+		},
+		{
+			"key": "baseUrl_notification",
+			"value": "http://localhost:30086"
+		},
+		{
+			"key": "token",
+			"value": ""
+		},
+		{
+			"key": "productId",
+			"value": ""
+		},
+		{
+			"key": "orderId",
+			"value": ""
+		},
+		{
+			"key": "deliveryId",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Flujo Completo (ejecutar en orden)",
+			"item": [
+				{
+					"name": "PASO 1 - Login (obtener JWT)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('token', jsonData.token);",
+									"",
+									"pm.test('Login exitoso', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(jsonData.token).to.not.be.empty;",
+									"});",
+									"",
+									"pm.test('Token contiene roles', function () {",
+									"    pm.expect(jsonData.roles).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"juan.perez@example.com\",\n    \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl_user}}/api/auth/login",
+							"host": ["{{baseUrl_user}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "PASO 2 - Ver productos existentes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Productos listados', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    pm.expect(jsonData.length).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_product}}/api/products",
+							"host": ["{{baseUrl_product}}"],
+							"path": ["api", "products"]
+						}
+					}
+				},
+				{
+					"name": "PASO 3 - Crear producto (createdBy del JWT)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('productId', jsonData.id);",
+									"",
+									"pm.test('Producto creado', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(jsonData.name).to.eql('Pizza Margherita');",
+									"});",
+									"",
+									"pm.test('createdBy tomado del JWT', function () {",
+									"    pm.expect(jsonData.createdBy).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Pizza Margherita\",\n    \"description\": \"Pizza italiana con tomate y mozzarella\",\n    \"price\": 25.50,\n    \"stock\": 100,\n    \"category\": \"PIZZA\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl_product}}/api/products",
+							"host": ["{{baseUrl_product}}"],
+							"path": ["api", "products"]
+						}
+					}
+				},
+				{
+					"name": "PASO 4 - Crear pedido (valida producto via REST)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('orderId', jsonData.id);",
+									"",
+									"pm.test('Pedido creado en PENDING', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(jsonData.status).to.eql('PENDING');",
+									"});",
+									"",
+									"pm.test('userId tomado del JWT', function () {",
+									"    pm.expect(jsonData.userId).to.be.a('number');",
+									"});",
+									"",
+									"pm.test('Precio obtenido del product-service', function () {",
+									"    pm.expect(jsonData.items[0].price).to.eql(25.5);",
+									"});",
+									"",
+									"pm.test('Total calculado correctamente', function () {",
+									"    pm.expect(jsonData.totalAmount).to.eql(51.0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"productId\": {{productId}},\n            \"quantity\": 2\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl_order}}/api/orders",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["api", "orders"]
+						}
+					}
+				},
+				{
+					"name": "PASO 4b - Validacion: producto inexistente (debe dar 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Error 400 con mensaje claro', function () {",
+									"    pm.response.to.have.status(400);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.error).to.include('Producto no encontrado');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"productId\": 99999,\n            \"quantity\": 1\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl_order}}/api/orders",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["api", "orders"]
+						}
+					}
+				},
+				{
+					"name": "PASO 5 - Ver pago pendiente",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"setTimeout(function(){}, 5000);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Pago en PENDING', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('PENDING');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl_payment}}/api/payments/order/{{orderId}}",
+							"host": ["{{baseUrl_payment}}"],
+							"path": ["api", "payments", "order", "{{orderId}}"]
+						}
+					}
+				},
+				{
+					"name": "PASO 6 - Pagar pedido manualmente",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Pago APPROVED', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('APPROVED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl_payment}}/api/payments/{{orderId}}/pay",
+							"host": ["{{baseUrl_payment}}"],
+							"path": ["api", "payments", "{{orderId}}", "pay"]
+						}
+					}
+				},
+				{
+					"name": "PASO 7 - Verificar pedido PAID (esperar 5s)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"setTimeout(function(){}, 5000);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Pedido en PAID', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('PAID');",
+									"});",
+									"",
+									"pm.test('Items no duplicados', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.items.length).to.eql(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl_order}}/api/orders/{{orderId}}",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["api", "orders", "{{orderId}}"]
+						}
+					}
+				},
+				{
+					"name": "PASO 8 - Ver entrega creada",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set('deliveryId', jsonData.id);",
+									"",
+									"pm.test('Entrega IN_TRANSIT', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(jsonData.status).to.eql('IN_TRANSIT');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl_delivery}}/api/deliveries/order/{{orderId}}",
+							"host": ["{{baseUrl_delivery}}"],
+							"path": ["api", "deliveries", "order", "{{orderId}}"]
+						}
+					}
+				},
+				{
+					"name": "PASO 9 - Marcar DELIVERED",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Entrega DELIVERED', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('DELIVERED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"DELIVERED\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl_delivery}}/api/deliveries/{{deliveryId}}/status",
+							"host": ["{{baseUrl_delivery}}"],
+							"path": ["api", "deliveries", "{{deliveryId}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "PASO 10 - Verificar pedido DELIVERED (esperar 5s)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"setTimeout(function(){}, 5000);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Pedido DELIVERED', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('DELIVERED');",
+									"});",
+									"",
+									"pm.test('Items siguen sin duplicarse', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.items.length).to.eql(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl_order}}/api/orders/{{orderId}}",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["api", "orders", "{{orderId}}"]
+						}
+					}
+				},
+				{
+					"name": "PASO 11 - Ver notificaciones (4 esperadas)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Notificaciones recibidas', function () {",
+									"    pm.response.to.have.status(200);",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    pm.expect(jsonData.length).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_notification}}/api/notifications",
+							"host": ["{{baseUrl_notification}}"],
+							"path": ["api", "notifications"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Seguridad - Validaciones",
+			"item": [
+				{
+					"name": "Payment SIN token (debe dar 401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('401 sin token', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_payment}}/api/payments",
+							"host": ["{{baseUrl_payment}}"],
+							"path": ["api", "payments"]
+						}
+					}
+				},
+				{
+					"name": "Delivery SIN token (debe dar 401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('401 sin token', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_delivery}}/api/deliveries",
+							"host": ["{{baseUrl_delivery}}"],
+							"path": ["api", "deliveries"]
+						}
+					}
+				},
+				{
+					"name": "Order SIN token (debe dar 401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('401 sin token', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_order}}/api/orders/1",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["api", "orders", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Checks",
+			"item": [
+				{
+					"name": "User Service Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('UP', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_user}}/actuator/health",
+							"host": ["{{baseUrl_user}}"],
+							"path": ["actuator", "health"]
+						}
+					}
+				},
+				{
+					"name": "Product Service Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('UP', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_product}}/actuator/health",
+							"host": ["{{baseUrl_product}}"],
+							"path": ["actuator", "health"]
+						}
+					}
+				},
+				{
+					"name": "Order Service Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('UP', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_order}}/actuator/health",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["actuator", "health"]
+						}
+					}
+				},
+				{
+					"name": "Payment Service Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('UP', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_payment}}/actuator/health",
+							"host": ["{{baseUrl_payment}}"],
+							"path": ["actuator", "health"]
+						}
+					}
+				},
+				{
+					"name": "Delivery Service Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('UP', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_delivery}}/actuator/health",
+							"host": ["{{baseUrl_delivery}}"],
+							"path": ["actuator", "health"]
+						}
+					}
+				},
+				{
+					"name": "Notification Service Health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('UP', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_notification}}/actuator/health",
+							"host": ["{{baseUrl_notification}}"],
+							"path": ["actuator", "health"]
+						}
+					}
+				},
+				{
+					"name": "Order Service Prometheus Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Metricas Prometheus disponibles', function () {",
+									"    pm.response.to.have.status(200);",
+									"    pm.expect(pm.response.text()).to.include('jvm_memory');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl_order}}/actuator/prometheus",
+							"host": ["{{baseUrl_order}}"],
+							"path": ["actuator", "prometheus"]
+						}
+					}
+				}
+			]
+		}
+	]
 }
